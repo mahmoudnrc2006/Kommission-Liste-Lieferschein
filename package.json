@@ -1,0 +1,18 @@
+{
+  "name": "etikett-manager-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Etikett-Manager als Web-App mit gemeinsamem Login und automatischer Speicherung (Upstash Redis)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cookie-parser": "^1.4.6",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
