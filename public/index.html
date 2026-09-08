@@ -227,26 +227,27 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 .ls-addr-row{display:grid;grid-template-columns:0.9fr 1.3fr 1.1fr 1fr;gap:8px;align-items:start;padding:6px 0;border-bottom:1px solid #f0f0f0}
 .ls-addr-row input,.ls-addr-row textarea{width:100%;padding:5px 7px;border:1px solid var(--gray-border);border-radius:4px;font-size:12px;font-family:var(--font)}
 .ls-page{background:#fff;border:1px solid #ddd;border-radius:6px;padding:22px 26px;margin-bottom:22px;max-width:900px}
-.ls-page .ls-copy-tag{float:right;font-size:11px;font-weight:700;color:#fff;background:var(--blue-dark);padding:3px 10px;border-radius:10px}
+.ls-page .ls-copy-tag{float:right;font-size:14px;font-weight:700;color:#fff;background:var(--blue-dark);padding:3px 10px;border-radius:10px}
 .ls-page h2{margin:0 0 14px;font-size:18px;color:var(--blue-dark)}
 .ls-blocks{display:flex;gap:26px;margin-bottom:14px;flex-wrap:wrap}
 .ls-block{flex:1;min-width:220px;font-size:12px;line-height:1.5}
 .ls-block b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#888;margin-bottom:3px}
 .ls-info-box{background:var(--blue-light);border-radius:5px;padding:8px 12px;font-size:11.5px;white-space:pre-line;margin-bottom:14px}
 .ls-kita-title{background:#eee;font-weight:700;padding:6px 10px;border-radius:4px;font-size:13px;margin-bottom:8px;display:flex;justify-content:space-between}
-.ls-items-table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px}
+.ls-items-table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px;table-layout:auto}
 .ls-items-table th{background:var(--blue-light);color:var(--blue-dark);text-align:left;padding:6px 8px;border:1px solid #ccc;font-size:11px}
 .ls-items-table td{padding:6px 8px;border:1px solid #ccc;vertical-align:top}
+.ls-items-table th.ls-col-tight,.ls-items-table td.ls-col-tight{width:1%;white-space:nowrap}
 .ls-items-table td.ls-num{text-align:right;font-weight:700;white-space:nowrap}
 .ls-checkbox{display:inline-block;width:14px;height:14px;border:1.5px solid #888;border-radius:3px}
 .ls-temp-table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:10.5px}
 .ls-temp-table th,.ls-temp-table td{border:1px solid #ccc;padding:4px 6px}
 .ls-temp-table th{background:#f5f5f5;text-align:left}
 .ls-temp-table td.ls-mid{text-align:center;color:#999}
-.ls-sign-row{display:flex;justify-content:space-between;gap:22px;margin-top:26px}
+.ls-sign-row{display:flex;justify-content:space-between;gap:22px;margin-top:14px}
 .ls-sign-col{flex:1;display:flex;flex-direction:column}
-.ls-sign-box{height:62px;border-bottom:1px solid #999}
-.ls-sign-label{font-size:11px;padding-top:5px;color:#555}
+.ls-sign-box{height:34px;border-bottom:1px solid #999}
+.ls-sign-label{font-size:10px;padding-top:3px;color:#555}
 @media print{
   .ls-page{border:none;border-radius:0;padding:0;margin:0;max-width:none;page-break-after:always}
   .ls-page:last-child{page-break-after:auto}
@@ -3579,6 +3580,7 @@ function _printWithTimestamp(fn) {
 // Sicherheitsnetz: falls über Strg+P / Browser-Druckmenü statt über die
 // App-Buttons gedruckt wird, wird der Fußzeilentext trotzdem gefüllt.
 window.addEventListener('beforeprint', updatePrintTimestamp);
+window.addEventListener('beforeprint', fitLieferscheinPagesToOnePage);
 
 // ═══════════════════════════════════════════════
 //  KOMPONENTEN KOPIEREN
@@ -3874,7 +3876,10 @@ async function saveStateToServer(snapshot) {
     } else if (res.status === 401) {
       setSyncStatus('⚠️ Abgemeldet – bitte neu laden');
     } else {
+      let detail = '';
+      try { const j = await res.json(); detail = j.details || j.error || ''; } catch(e2) {}
       setSyncStatus('⚠️ Speichern fehlgeschlagen');
+      console.error('Speichern fehlgeschlagen:', res.status, detail);
     }
   } catch (e) {
     setSyncStatus('⚠️ Keine Verbindung');
@@ -4201,13 +4206,13 @@ function renderKomBlockWithTemp(kitaData, standortTag) {
   const k = kitaData.kita;
   let html = `<table class="ls-items-table">
     <thead><tr>
-      <th>Kategorie</th><th>Komponente</th><th style="width:90px">g/Pers.</th><th style="width:100px">Kellenplan</th><th style="width:65px">Personen</th><th style="width:90px">Menge gesamt</th><th style="width:60px">Geliefert</th><th style="width:90px">Temperatur-Check</th><th style="width:100px">Kontrolliert (Name)</th>
+      <th>Komponente</th><th class="ls-col-tight">g/Pers.</th><th class="ls-col-tight">Kellenplan</th><th class="ls-col-tight">Personen</th><th class="ls-col-tight">Menge<br>gesamt</th><th class="ls-col-tight">Geliefert</th><th class="ls-col-tight">Temp.<br>Check</th><th class="ls-col-tight">Kontrolliert<br>(Name)</th>
     </tr></thead><tbody>`;
   let lastMenu = '';
   kitaData.rows.forEach(row => {
     if(row.menu !== lastMenu) {
       const [color, bg] = KOM_COLORS[row.cls] || ['#333','#eee'];
-      html += `<tr><td colspan="9" class="kom-section-header" style="color:${color};background:${bg}">${esc(row.menu)}</td></tr>`;
+      html += `<tr><td colspan="8" class="kom-section-header" style="color:${color};background:${bg}">${esc(row.menu)}</td></tr>`;
       lastMenu = row.menu;
     }
     const portionLabel = gppToPortionLabel(row.gpp, row.unit);
@@ -4217,15 +4222,14 @@ function renderKomBlockWithTemp(kitaData, standortTag) {
     const kellenplanDisplay = gppToKellenplan(row.gpp, row.unit);
     const compAllergenCodes = renderCompAllergenCodes(row.allergenCodes);
     html += `<tr>
-      <td></td>
       <td>${esc(row.comp)}${compAllergenCodes}</td>
-      <td class="kom-gpp">${gppDisplay}</td>
-      <td class="kom-gpp" style="font-weight:600;color:var(--blue-dark)">${kellenplanDisplay}</td>
-      <td class="kom-gpp">${row.persons}</td>
-      <td class="ls-num">${fmtQty(row.qty, row.unit)}</td>
-      <td style="text-align:center"><span class="ls-checkbox"></span></td>
-      <td></td>
-      <td></td>
+      <td class="ls-col-tight kom-gpp">${gppDisplay}</td>
+      <td class="ls-col-tight kom-gpp" style="font-weight:600;color:var(--blue-dark)">${kellenplanDisplay}</td>
+      <td class="ls-col-tight kom-gpp">${row.persons}</td>
+      <td class="ls-col-tight ls-num">${fmtQty(row.qty, row.unit)}</td>
+      <td class="ls-col-tight" style="text-align:center"><span class="ls-checkbox"></span></td>
+      <td class="ls-col-tight" style="text-align:right">°C</td>
+      <td class="ls-col-tight"></td>
     </tr>`;
   });
   html += `</tbody></table>`;
@@ -4265,7 +4269,7 @@ function buildLieferscheinHTML() {
     if(copyKey === 'kunde') logoSrc = s && s.logo;
     else if(copyKey === 'kueche') logoSrc = state.logos && state.logos.kueche;
     else if(copyKey === 'kreativ') logoSrc = state.logos && state.logos.kreativ;
-    const logoHtml = logoSrc ? `<div style="width:190px;height:70px;border:1px solid #ddd;border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:10px;background:#fff"><img src="${logoSrc}" style="max-width:100%;max-height:100%;object-fit:contain"></div>` : '';
+    const logoHtml = logoSrc ? `<div style="width:280px;height:70px;border:1px solid #ddd;border-radius:4px;overflow:hidden;margin-bottom:10px;background:#fff"><img src="${logoSrc}" style="width:100%;height:100%;object-fit:fill"></div>` : '';
     return `
     <div class="ls-page">
       <span class="ls-copy-tag">Exemplar: ${esc(copyTag)}</span>
@@ -4314,8 +4318,66 @@ function setLsCopySelAll() {
 function printLieferschein() {
   renderLieferscheinPreview();
   updatePrintTimestamp();
+  fitLieferscheinPagesToOnePage();
   window.print();
 }
+
+// Sorgt dafür, dass jedes Lieferschein-Exemplar (Kunde/Kreativ/Küche) IMMER
+// auf genau eine gedruckte Seite passt, egal wie viele Komponenten/Kitas
+// enthalten sind – durch automatisches Verkleinern des Inhalts bei Bedarf.
+function fitLieferscheinPagesToOnePage() {
+  // Feste Seitengröße fürs Drucken erzwingen (A4), damit wir eine verlässliche
+  // Ziel-Höhe zum Messen haben.
+  let styleEl = document.getElementById('ls-fit-page-style');
+  if(!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'ls-fit-page-style';
+    document.head.appendChild(styleEl);
+  }
+  const marginMm = 8;
+  styleEl.textContent = `@media print { @page { size: A4; margin: ${marginMm}mm; } }`;
+
+  const pxPerMm = 96 / 25.4;
+  const pageWidthPx = (210 - 2*marginMm) * pxPerMm;
+  const pageHeightPx = (297 - 2*marginMm) * pxPerMm;
+
+  document.querySelectorAll('#ls-area .ls-page').forEach(el => {
+    // Auf die tatsächliche Druckbreite und ohne Rand/Innenabstand setzen,
+    // BEVOR gemessen wird – sonst stimmt der Zeilenumbruch beim Drucken
+    // nicht mit der Messung auf dem Bildschirm überein (der Bildschirm ist
+    // meist breiter als die echte Druckseite), was sonst zu einer zu klein
+    // berechneten Skalierung und einer zweiten Seite führt.
+    el.style.zoom = '';
+    el.style.maxWidth = 'none';
+    el.style.width = pageWidthPx + 'px';
+    el.style.padding = '0';
+    el.style.border = 'none';
+    el.style.margin = '0';
+    void el.offsetHeight; // reflow erzwingen
+
+    const contentHeight = el.scrollHeight;
+    // WICHTIG: "zoom" statt "transform:scale" verwenden – transform ändert nur
+    // die optische Darstellung (Paint), der Browser berechnet Seitenumbrüche
+    // beim Drucken aber anhand der Größe VOR dem Transform, wodurch trotz
+    // korrekter Berechnung eine zweite (fast leere) Seite entstehen konnte.
+    // "zoom" verändert dagegen das tatsächliche Layout, wird beim Drucken also
+    // korrekt berücksichtigt. Nur verkleinern (max. 100%), um horizontalen
+    // Überlauf beim Vergrößern zu vermeiden.
+    const scale = Math.min(1, Math.max(0.4, pageHeightPx / contentHeight));
+    el.style.zoom = scale;
+  });
+}
+
+window.addEventListener('afterprint', () => {
+  document.querySelectorAll('#ls-area .ls-page').forEach(el => {
+    el.style.zoom = '';
+    el.style.width = '';
+    el.style.maxWidth = '';
+    el.style.padding = '';
+    el.style.border = '';
+    el.style.margin = '';
+  });
+});
 
 // ═══════════════════════════════════════════════
 //  BESTELLUNG (ORDER SUMMARY)
