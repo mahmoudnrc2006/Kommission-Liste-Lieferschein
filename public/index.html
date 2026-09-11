@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kommissions & Etikett Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root {
   --blue-dark:#1F4E79;--blue-mid:#2E75B6;--blue-light:#DEEAF1;
@@ -14,6 +15,10 @@
   --card-bg:#fff;--font:'Segoe UI',Arial,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+body.role-viewer input:not([type=file]),body.role-viewer textarea,body.role-viewer select{pointer-events:none;background:#f2f2f2!important;opacity:.75}
+body.role-viewer input[type=checkbox],body.role-viewer input[type=radio]{opacity:.5}
+body.role-viewer .btn-primary,body.role-viewer .btn-danger,body.role-viewer .btn-secondary:not(.role-allowed),body.role-viewer .add-row-btn{pointer-events:none;opacity:.4;filter:grayscale(1)}
+body.role-viewer .lbl-format-panel button:not(.no-print-restrict){pointer-events:auto;opacity:1;filter:none}
 body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh;overflow:hidden;font-size:13px}
 #sidebar{width:210px;min-width:210px;background:#1F4E79;color:#fff;display:flex;flex-direction:column}
 #sidebar .logo{background:#0d2d4a;padding:14px;font-size:13px;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1)}
@@ -129,6 +134,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 .kom-kita-block{margin-bottom:18px;page-break-inside:avoid;break-inside:avoid}
 .kom-page-break{page-break-before:always;break-before:page}
 .kom-kita-title{font-size:13px;font-weight:700;color:#fff;background:var(--blue-dark);padding:7px 12px;border-radius:5px 5px 0 0;display:flex;justify-content:space-between;align-items:center}
+.kom-page-title{margin:0 0 14px;font-size:18px;font-weight:700;color:var(--blue-dark)}
 .kom-kita-subtitle{font-size:10.5px;opacity:.8}
 .kom-table{width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ccc;border-top:none}
 .kom-table th{background:#EEF3F8;padding:5px 9px;text-align:left;font-size:10.5px;font-weight:700;color:var(--blue-dark);border-bottom:2px solid var(--blue-mid);border-right:1px solid #ddd}
@@ -166,6 +172,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
   .panel-header{display:none}
   .panel-body.hidden{display:block!important}
   #label-area{padding:0}
+  .panel-body{padding:0!important}
   .labels-grid{display:flex;flex-wrap:wrap;align-content:flex-start}
   .lbl{break-inside:avoid;page-break-inside:avoid}
   .label-day-title{display:none}
@@ -328,18 +335,55 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 </head>
 <body>
 
-<!-- ═══ Login-Bildschirm (deckt alles ab, bis Passwort korrekt ist) ═══ -->
-<div id="login-screen" style="position:fixed;inset:0;background:linear-gradient(135deg,#1A3A5C,#2C5F8A);
-  display:flex;align-items:center;justify-content:center;z-index:99999;font-family:inherit">
+<!-- ═══ SERVER-Login (schützt den ganzen Server vor Fremdzugriff aus dem Internet) ═══ -->
+<div id="server-login-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1A3A5C,#2C5F8A);
+  align-items:center;justify-content:center;z-index:999999;font-family:inherit">
   <div style="background:#fff;border-radius:12px;padding:32px 30px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
     <div style="text-align:center;font-size:20px;font-weight:800;color:var(--blue-dark,#1A3A5C);margin-bottom:4px">🏷 Etikett-Manager</div>
-    <div style="text-align:center;font-size:12px;color:#888;margin-bottom:22px">Bitte Passwort eingeben</div>
-    <input id="login-pw" type="password" placeholder="Passwort" autocomplete="current-password"
+    <div style="text-align:center;font-size:12px;color:#888;margin-bottom:22px">Server-Zugang – bitte Passwort eingeben</div>
+    <input id="server-login-pw" type="password" placeholder="Server-Passwort" autocomplete="current-password"
       style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:10px;box-sizing:border-box">
-    <button id="login-btn" style="width:100%;padding:10px;border:none;border-radius:6px;background:var(--blue-dark,#1A3A5C);
+    <button id="server-login-btn" style="width:100%;padding:10px;border:none;border-radius:6px;background:var(--blue-dark,#1A3A5C);
       color:#fff;font-size:14px;font-weight:700;cursor:pointer">Anmelden</button>
-    <div id="login-error" style="color:#C0392B;font-size:12px;margin-top:10px;text-align:center;display:none">Falsches Passwort</div>
-    <div id="login-status" style="color:#888;font-size:11px;margin-top:14px;text-align:center"></div>
+    <div id="server-login-error" style="color:#C0392B;font-size:12px;margin-top:10px;text-align:center;display:none">Falsches Passwort</div>
+    <div id="server-login-status" style="color:#888;font-size:11px;margin-top:14px;text-align:center"></div>
+  </div>
+</div>
+
+<!-- ═══ Login-Bildschirm (nur wenn Benutzerkonten angelegt sind) ═══ -->
+<div id="acc-login-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1A3A5C,#2C5F8A);
+  align-items:center;justify-content:center;z-index:99999;font-family:inherit">
+
+  <div style="background:#fff;border-radius:12px;padding:32px 30px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="text-align:center;font-size:20px;font-weight:800;color:var(--blue-dark,#1A3A5C);margin-bottom:4px">🏷 Etikett-Manager</div>
+    <div style="text-align:center;font-size:12px;color:#888;margin-bottom:20px">Bitte anmelden</div>
+    <input id="acc-login-user" type="text" placeholder="Benutzername" autocomplete="username"
+      style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:8px;box-sizing:border-box">
+    <input id="acc-login-pw" type="password" placeholder="Passwort" autocomplete="current-password"
+      style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-bottom:10px;box-sizing:border-box"
+      onkeydown="if(event.key==='Enter') accLogin()">
+    <button onclick="accLogin()" style="width:100%;padding:10px;border:none;border-radius:6px;background:var(--blue-dark,#1A3A5C);
+      color:#fff;font-size:14px;font-weight:700;cursor:pointer">Anmelden</button>
+    <div id="acc-login-error" style="color:#C0392B;font-size:12px;margin-top:10px;text-align:center;display:none">Benutzername oder Passwort falsch</div>
+    <div style="text-align:center;margin-top:14px">
+      <a onclick="openForgotPw()" style="font-size:11.5px;color:#888;cursor:pointer;text-decoration:underline">Passwort vergessen?</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ "Passwort vergessen" Dialog ═══ -->
+<div id="acc-forgot-screen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  align-items:center;justify-content:center;z-index:100000;font-family:inherit">
+  <div style="background:#fff;border-radius:12px;padding:26px 26px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="font-size:15px;font-weight:700;color:var(--blue-dark);margin-bottom:10px">🔑 Passwort vergessen</div>
+    <div style="font-size:12px;color:#666;margin-bottom:14px">Nur für Admin-Konten mit hinterlegter E-Mail-Adresse. Ein neues, zufälliges Passwort wird an diese Adresse gesendet.</div>
+    <input id="acc-forgot-user" type="text" placeholder="Benutzername"
+      style="width:100%;padding:9px 11px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:10px;box-sizing:border-box">
+    <div id="acc-forgot-status" style="font-size:11.5px;color:#666;margin-bottom:8px;min-height:16px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-secondary" style="font-size:12px" onclick="closeForgotPw()">Abbrechen</button>
+      <button class="btn-primary" style="font-size:12px" onclick="sendForgotPwEmail()">E-Mail senden</button>
+    </div>
   </div>
 </div>
 
@@ -352,7 +396,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
   <div class="logo">🏷 Etikett Manager<span id="sidebar-sub">Kommissions-System</span></div>
   <div id="sync-status" style="font-size:10px;color:#8FA8C2;padding:0 16px 8px;display:flex;align-items:center;gap:6px;justify-content:space-between">
     <span id="sync-status-text">🔄 Synchronisiert</span>
-    <a onclick="serverLogout()" style="cursor:pointer;text-decoration:underline;opacity:.8">Abmelden</a>
+    <a onclick="serverLogout()" style="cursor:pointer;text-decoration:underline;opacity:.8">Server abmelden</a>
   </div>
   <nav>
     <div class="nav-sep">Standorte</div>
@@ -380,7 +424,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
     </a>
     <a id="nav-kommission" onclick="showPage('kommission')">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      Kommissions Liste
+      Produktionsliste
     </a>
     <a id="nav-lieferschein" onclick="showPage('lieferschein')">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="6" width="15" height="12" rx="1"/><path d="M16 10h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="1.8"/><circle cx="18.5" cy="18.5" r="1.8"/></svg>
@@ -497,6 +541,36 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+          👤 Benutzerkonten
+          <svg class="toggle" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="panel-body">
+          <div style="font-size:11.5px;color:#666;margin-bottom:12px">
+            Solange kein Konto angelegt ist, ist das Programm frei zugänglich (wie bisher). Sobald mindestens ein Konto existiert, wird bei jedem Öffnen ein Login verlangt.<br>
+            <strong>Rollen:</strong> <em>Nur Ansicht</em> – nichts bearbeiten/speichern. <em>Eingeschränkt</em> – nur heute &amp; Zukunft bearbeitbar, Vergangenheit nur ansehen. <em>Admin</em> – alles, inkl. Benutzerverwaltung.<br>
+            Konten werden in diesem Browser gespeichert (unabhängig von den sonst nicht automatisch geladenen Wochendaten).
+          </div>
+          <div id="acc-list" style="margin-bottom:14px"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="min-width:120px"><label>Benutzername</label><input id="acc-new-user" type="text" style="padding:5px 8px;border:1px solid var(--gray-border);border-radius:4px;font-size:12.5px"></div>
+            <div class="field" style="min-width:120px"><label>Passwort</label><input id="acc-new-pw" type="text" style="padding:5px 8px;border:1px solid var(--gray-border);border-radius:4px;font-size:12.5px"></div>
+            <div class="field" style="min-width:130px">
+              <label>Rolle</label>
+              <select id="acc-new-role" onchange="document.getElementById('acc-new-email-wrap').style.display=(this.value==='admin')?'block':'none'" style="padding:5px 8px;border:1px solid var(--gray-border);border-radius:4px;font-size:12.5px">
+                <option value="viewer">Nur Ansicht</option>
+                <option value="limited">Eingeschränkt (heute &amp; Zukunft)</option>
+                <option value="admin">Admin (alles)</option>
+              </select>
+            </div>
+            <div class="field" id="acc-new-email-wrap" style="display:none;min-width:170px"><label>E-Mail (für „Passwort vergessen")</label><input id="acc-new-email" type="email" style="padding:5px 8px;border:1px solid var(--gray-border);border-radius:4px;font-size:12.5px"></div>
+            <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="addAccount()">+ Konto anlegen</button>
+          </div>
+          <div id="acc-add-status" style="margin-top:8px;font-size:12px;font-weight:600;min-height:16px"></div>
         </div>
       </div>
 
@@ -701,10 +775,10 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
           </div>
         </div>
         <div class="fmt-grid">
-          <div class="field"><label>Breite (mm)</label><input id="fmt-w" type="number" value="62" min="20" max="200" oninput="applyLabelFormat()"></div>
-          <div class="field"><label>Höhe (mm)</label><input id="fmt-h" type="number" value="38" min="15" max="200" oninput="applyLabelFormat()"></div>
-          <div class="field"><label>Pro Zeile</label><input id="fmt-cols" type="number" value="4" min="1" max="10" oninput="applyLabelFormat()"></div>
-          <div class="field"><label>Abstand (mm)</label><input id="fmt-gap" type="number" value="3" min="0" max="20" oninput="applyLabelFormat()"></div>
+          <div class="field"><label>Breite (mm)</label><input id="fmt-w" type="number" value="70" min="20" max="200" step="0.1" oninput="applyLabelFormat()"></div>
+          <div class="field"><label>Höhe (mm)</label><input id="fmt-h" type="number" value="42.3" min="15" max="200" step="0.1" oninput="applyLabelFormat()"></div>
+          <div class="field"><label>Pro Zeile</label><input id="fmt-cols" type="number" value="3" min="1" max="10" oninput="applyLabelFormat()"></div>
+          <div class="field"><label>Abstand (mm)</label><input id="fmt-gap" type="number" value="0" min="0" max="20" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Schrift: Menge</label><input id="fmt-qsize" type="number" value="22" min="10" max="60" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Schrift: Kita</label><input id="fmt-kita-size" type="number" value="12" min="7" max="30" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Schrift: Menü</label><input id="fmt-menu-size" type="number" value="10" min="6" max="24" oninput="applyLabelFormat()"></div>
@@ -714,9 +788,10 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
           <div class="field"><label>Schrift: Kostform</label><input id="fmt-kostform-size" type="number" value="22" min="6" max="60" oninput="applyLabelFormat()"></div>
         </div>
         <div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-secondary" style="font-size:11px" onclick="setFormat(62,38,4,'A4')">62×38mm · 4/Zeile · A4</button>
-          <button class="btn-secondary" style="font-size:11px" onclick="setFormat(80,50,3,'A4')">80×50mm · 3/Zeile · A4</button>
-          <button class="btn-secondary" style="font-size:11px" onclick="setFormat(100,60,2,'A4')">100×60mm · 2/Zeile · A4</button>
+          <button class="btn-secondary" style="font-size:11px" onclick="setFormat(62,38,4,'A4',3)">62×38mm · 4/Zeile · A4</button>
+          <button class="btn-secondary" style="font-size:11px" onclick="setFormat(80,50,3,'A4',3)">80×50mm · 3/Zeile · A4</button>
+          <button class="btn-secondary" style="font-size:11px" onclick="setFormat(100,60,2,'A4',3)">100×60mm · 2/Zeile · A4</button>
+          <button class="btn-secondary" style="font-size:11px;font-weight:700;border-color:var(--blue-dark);color:var(--blue-dark)" onclick="setFormat(70,42.3,3,'A4',0)">⭐ 70×42,3mm · 3/Zeile · A4 (TopStick 8708, 21/Bogen)</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(105,74,2,'A4')">A6 (105×74mm) · 2/Zeile · A4</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(148,105,1,'A5')">A5 (148×105mm) · 1/Zeile · A5</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(105,148,1,'A6')">A6 (105×148mm) · 1/Zeile · A6</button>
@@ -794,7 +869,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
     <div id="page-kommission" style="display:none">
 
       <div class="lbl-format-panel no-print">
-        <div class="fmt-title">📋 Kommissions Liste – Filter & Ansicht</div>
+        <div class="fmt-title">📋 Produktionsliste – Filter & Ansicht</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
           <div class="field" style="margin:0">
             <label>Jahr</label>
@@ -904,7 +979,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
           <div style="font-size:11.5px;color:#555;margin-bottom:8px">Wähle welche Wochentage aktiv sein sollen (gilt überall: Komponenten, Kitas, Etiketten, Lieferschein).</div>
           <div id="ls-active-days-mgr" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         </div>
-        <div style="font-size:10.5px;color:#888;margin-top:2px">Die Artikel-/Mengenübersicht je Kita entspricht automatisch der Kommissionsliste dieses Tages (inkl. Kategorien, Kellenplan &amp; Mengen) – mit zusätzlichen Spalten „Geliefert" &amp; „Temperatur-Check" zum handschriftlichen Abhaken vor Ort.</div>
+        <div style="font-size:10.5px;color:#888;margin-top:2px">Die Artikel-/Mengenübersicht je Kita entspricht automatisch der Produktionsliste dieses Tages (inkl. Kategorien, Kellenplan &amp; Mengen) – mit zusätzlichen Spalten „Geliefert" &amp; „Temperatur-Check" zum handschriftlichen Abhaken vor Ort.</div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--gray-border)">
           <div style="font-size:11px;font-weight:600;color:var(--blue-dark);margin-bottom:6px">🖨 Welche Exemplare drucken?</div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
@@ -1097,6 +1172,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 </div>
 
 <input type="file" id="import-file" style="display:none" accept=".json" onchange="loadImportFile(event)">
+
 
 <script>
 // ═══════════════════════════════════════════════
@@ -1315,8 +1391,8 @@ function onJahrChange(sourceId) {
   populateKWSelect();
   renderDatesDisplay();
   autoUpdateLabels();
-  if(currentPage==='kitas') renderKitaEditor(currentKitaDay);
-  if(currentPage==='komponenten') renderCompEditor(currentCompDay);
+  if(currentPage==='kitas') guardDayAccess(currentKitaDay, ()=>renderKitaEditor(currentKitaDay));
+  if(currentPage==='komponenten') guardDayAccess(currentCompDay, ()=>renderCompEditor(currentCompDay));
   if(currentPage==='kommission') { renderKommissionDayNav(); renderKommission(); }
   if(currentPage==='lieferschein') { renderLsDayNav(); renderLieferschein(); }
 }
@@ -1327,8 +1403,8 @@ function onKWChange(sourceId) {
   populateKWSelect();
   renderDatesDisplay();
   autoUpdateLabels();
-  if(currentPage==='kitas') renderKitaEditor(currentKitaDay);
-  if(currentPage==='komponenten') renderCompEditor(currentCompDay);
+  if(currentPage==='kitas') guardDayAccess(currentKitaDay, ()=>renderKitaEditor(currentKitaDay));
+  if(currentPage==='komponenten') guardDayAccess(currentCompDay, ()=>renderCompEditor(currentCompDay));
   if(currentPage==='kommission') { renderKommissionDayNav(); renderKommission(); }
   if(currentPage==='lieferschein') { renderLsDayNav(); renderLieferschein(); }
 }
@@ -1463,11 +1539,11 @@ function showPage(p) {
     if(nav) nav.classList.toggle('active',x===p);
   });
   currentPage=p;
-  const titles={einstellungen:'⚙ Einstellungen',komponenten:'📋 Komponenten',kitas:'👥 Kitas & Mengen',etiketten:'🏷 Etiketten',kommission:'📋 Kommissions Liste',lieferschein:'🚚 Lieferschein',bestellung:'🛒 Zusammenfassung für Bestellung',lunchpaket:'🥪 Lunchpaket',salatbuffet:'🥗 Salatbuffet',databank:'🗄 DataBank'};
+  const titles={einstellungen:'⚙ Einstellungen',komponenten:'📋 Komponenten',kitas:'👥 Kitas & Mengen',etiketten:'🏷 Etiketten',kommission:'📋 Produktionsliste',lieferschein:'🚚 Lieferschein',bestellung:'🛒 Zusammenfassung für Bestellung',lunchpaket:'🥪 Lunchpaket',salatbuffet:'🥗 Salatbuffet',databank:'🗄 DataBank'};
   document.getElementById('topbar-title').textContent=titles[p]||p;
   document.getElementById('print-btn').style.display=(p==='etiketten')?'':'none';
-  if(p==='komponenten') { renderCompEditor(currentCompDay); renderCompCopyPanel(); }
-  if(p==='kitas') { renderKitaCopyPanel(); renderKitaEditor(currentKitaDay); }
+  if(p==='komponenten') { guardDayAccess(currentCompDay, ()=>renderCompEditor(currentCompDay)); renderCompCopyPanel(); }
+  if(p==='kitas') { renderKitaCopyPanel(); guardDayAccess(currentKitaDay, ()=>renderKitaEditor(currentKitaDay)); }
   if(p==='etiketten') { populateLblStandortSel(); populateLblCompFilter(); renderLabels(currentLblDay); }
   if(p==='einstellungen') { renderStandortTable(); renderActiveDaysMgr(); }
   if(p==='kommission') { populateKomStandortSel(); renderKommissionDayNav(); renderKommission(); }
@@ -1760,6 +1836,163 @@ function closeModal() {
 // ═══════════════════════════════════════════════
 //  KOMPONENTEN: add veg/gef to comp editor
 // ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+//  BENUTZERKONTEN & ROLLEN
+// ═══════════════════════════════════════════════
+const ACCOUNTS_LS_KEY = 'etikett_manager_accounts';
+let currentAccount = null; // {username, role, email} – nur für diese Sitzung, kein Auto-Login
+
+// EmailJS-Zugangsdaten für "Passwort vergessen" – hier eintragen, sobald vorhanden:
+const EMAILJS_SERVICE_ID  = 'service_kbbpu0n';
+const EMAILJS_TEMPLATE_ID = 'template_ghbhwg5';
+const EMAILJS_PUBLIC_KEY  = 'lbt5tddNLqVqGTG-_';
+
+function loadAccounts() {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_LS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+function saveAccounts(accounts) {
+  try { localStorage.setItem(ACCOUNTS_LS_KEY, JSON.stringify(accounts)); } catch(e) {}
+}
+
+function isPastDay(day) {
+  if(!state.activeKW || !state.activeJahr) return false;
+  const idx = DAYS.indexOf(day);
+  if(idx < 0) return false;
+  const dates = getKWDates(state.activeKW, state.activeJahr);
+  const d = new Date(dates[idx]);
+  d.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return d < today;
+}
+
+function isViewerRole() { return currentAccount && currentAccount.role === 'viewer'; }
+function isAdminRole()  { return !currentAccount || currentAccount.role === 'admin'; } // kein Konto = frei
+
+// Ruft onAllowed() auf, wenn dieser Tag für die aktuelle Rolle bearbeitbar ist.
+// "Eingeschränkt" darf nur heute/Zukunft bearbeiten; Vergangenheit wird gesperrt
+// angezeigt (kein Passwort-Dialog mehr nötig – ist strikt durch die Rolle vorgegeben).
+function guardDayAccess(day, onAllowed) {
+  if(!currentAccount || currentAccount.role !== 'limited' || !isPastDay(day)) { onAllowed(); return; }
+  const idx = DAYS.indexOf(day);
+  const dates = getKWDates(state.activeKW, state.activeJahr);
+  const dateStr = idx>=0 ? fmtDate(dates[idx]) : '';
+  ['comp-editor','kita-editor'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = `<div style="padding:30px;text-align:center;color:#999;font-size:13px">🔒 ${esc(day)}, ${dateStr} liegt in der Vergangenheit.<br>Deine Rolle „Eingeschränkt" kann nur heute &amp; zukünftige Tage bearbeiten.</div>`;
+  });
+}
+
+function renderAccountsList() {
+  const el = document.getElementById('acc-list');
+  if(!el) return;
+  const accounts = loadAccounts();
+  const roleLabel = {viewer:'Nur Ansicht', limited:'Eingeschränkt', admin:'Admin'};
+  if(!accounts.length) { el.innerHTML = '<div style="font-size:12px;color:#999">Noch keine Konten angelegt.</div>'; return; }
+  el.innerHTML = `<table style="width:100%;font-size:12.5px;border-collapse:collapse">
+    <thead><tr style="text-align:left;color:#666"><th style="padding:4px 6px">Benutzername</th><th style="padding:4px 6px">Rolle</th><th style="padding:4px 6px">E-Mail</th><th></th></tr></thead>
+    <tbody>${accounts.map((a,i) => `<tr style="border-top:1px solid var(--gray-border)">
+      <td style="padding:4px 6px;font-weight:600">${esc(a.username)}</td>
+      <td style="padding:4px 6px">${roleLabel[a.role]||a.role}</td>
+      <td style="padding:4px 6px;color:#888">${esc(a.email||'–')}</td>
+      <td style="padding:4px 6px;text-align:right"><button class="btn-danger" style="font-size:10.5px;padding:2px 8px" onclick="deleteAccount(${i})">Löschen</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function addAccount() {
+  const username = document.getElementById('acc-new-user').value.trim();
+  const password = document.getElementById('acc-new-pw').value;
+  const role = document.getElementById('acc-new-role').value;
+  const email = document.getElementById('acc-new-email').value.trim();
+  const status = document.getElementById('acc-add-status');
+  if(!username || !password) { status.style.color='#c0392b'; status.textContent='⚠ Benutzername und Passwort erforderlich.'; return; }
+  const accounts = loadAccounts();
+  if(accounts.some(a => a.username.toLowerCase() === username.toLowerCase())) {
+    status.style.color='#c0392b'; status.textContent='⚠ Dieser Benutzername existiert schon.'; return;
+  }
+  if(role === 'admin' && !email) { status.style.color='#c0392b'; status.textContent='⚠ Für Admin-Konten bitte eine E-Mail angeben (für „Passwort vergessen").'; return; }
+  accounts.push({username, password, role, email: role==='admin' ? email : ''});
+  saveAccounts(accounts);
+  document.getElementById('acc-new-user').value = '';
+  document.getElementById('acc-new-pw').value = '';
+  document.getElementById('acc-new-email').value = '';
+  status.style.color='var(--green-dark)'; status.textContent=`✅ Konto „${username}" angelegt.`;
+  renderAccountsList();
+}
+
+function deleteAccount(i) {
+  const accounts = loadAccounts();
+  const acc = accounts[i];
+  if(!acc) return;
+  const admins = accounts.filter(a => a.role === 'admin');
+  if(acc.role === 'admin' && admins.length <= 1) {
+    alert('Das letzte Admin-Konto kann nicht gelöscht werden – sonst hat niemand mehr Zugriff auf die Benutzerverwaltung.');
+    return;
+  }
+  accounts.splice(i, 1);
+  saveAccounts(accounts);
+  renderAccountsList();
+}
+
+function applyRoleRestrictions() {
+  document.body.classList.remove('role-viewer');
+  if(isViewerRole()) document.body.classList.add('role-viewer');
+  const accPanel = document.getElementById('acc-list');
+  if(accPanel) {
+    const panelBody = accPanel.closest('.panel-body');
+    if(panelBody && !isAdminRole()) panelBody.innerHTML = '<div style="font-size:12px;color:#999">Nur für Admin-Konten sichtbar.</div>';
+  }
+}
+
+function accLogin() {
+  const username = document.getElementById('acc-login-user').value.trim();
+  const password = document.getElementById('acc-login-pw').value;
+  const accounts = loadAccounts();
+  const acc = accounts.find(a => a.username.toLowerCase() === username.toLowerCase() && a.password === password);
+  const err = document.getElementById('acc-login-error');
+  if(!acc) { err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  currentAccount = {username: acc.username, role: acc.role, email: acc.email};
+  document.getElementById('acc-login-screen').style.display = 'none';
+  applyRoleRestrictions();
+  initUI();
+}
+
+function openForgotPw() {
+  document.getElementById('acc-forgot-user').value = '';
+  document.getElementById('acc-forgot-status').textContent = '';
+  document.getElementById('acc-forgot-screen').style.display = 'flex';
+}
+function closeForgotPw() {
+  document.getElementById('acc-forgot-screen').style.display = 'none';
+}
+function sendForgotPwEmail() {
+  const username = document.getElementById('acc-forgot-user').value.trim();
+  const status = document.getElementById('acc-forgot-status');
+  const accounts = loadAccounts();
+  const idx = accounts.findIndex(a => a.username.toLowerCase() === username.toLowerCase());
+  if(idx === -1) { status.style.color='#c0392b'; status.textContent = '⚠ Benutzername nicht gefunden.'; return; }
+  const acc = accounts[idx];
+  if(acc.role !== 'admin' || !acc.email) { status.style.color='#c0392b'; status.textContent = '⚠ Nur Admin-Konten mit hinterlegter E-Mail können das Passwort per Mail zurücksetzen.'; return; }
+  if(typeof emailjs === 'undefined') { status.style.color='#c0392b'; status.textContent = '⚠ E-Mail-Versand nicht verfügbar (keine Internetverbindung?).'; return; }
+  const newPassword = Math.random().toString(36).slice(-8);
+  status.style.color='#666'; status.textContent = 'Sende E-Mail…';
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID,
+    { to_email: acc.email, new_password: newPassword, username: acc.username },
+    { publicKey: EMAILJS_PUBLIC_KEY }
+  ).then(() => {
+    accounts[idx].password = newPassword;
+    saveAccounts(accounts);
+    status.style.color='var(--green-dark)'; status.textContent = `✅ Neues Passwort wurde an ${acc.email} gesendet.`;
+  }).catch((e) => {
+    status.style.color='#c0392b'; status.textContent = '⚠ Senden fehlgeschlagen. EmailJS-Zugangsdaten im Code prüfen.';
+    console.error(e);
+  });
+}
+
 function renderCompEditor(day) {
   currentCompDay = day;
   const activeDays = getActiveDays();
@@ -1767,7 +2000,7 @@ function renderCompEditor(day) {
   const dates = state.activeKW ? getKWDates(state.activeKW, state.activeJahr) : null;
   nav.innerHTML = activeDays.map(d=>{
     const dateStr = dates ? fmtDateShort(dates[DAYS.indexOf(d)]) : '';
-    return `<button class="${d===day?'active':''}" onclick="renderCompEditor('${d}')">${d.substring(0,2)}${dateStr?`<br><span style="font-size:9.5px;font-weight:400;opacity:.75">${dateStr}</span>`:''}</button>`;
+    return `<button class="${d===day?'active':''}" onclick="guardDayAccess('${d}',()=>renderCompEditor('${d}'))">${d.substring(0,2)}${dateStr?`<br><span style="font-size:9.5px;font-weight:400;opacity:.75">${dateStr}</span>`:''}</button>`;
   }).join('');
   renderActiveDaysMgrInto('comp-active-days-mgr');
 
@@ -2051,7 +2284,7 @@ function renderKitaEditor(day) {
   const dates = state.activeKW ? getKWDates(state.activeKW, state.activeJahr) : null;
   nav.innerHTML = activeDays.map(d=>{
     const dateStr = dates ? fmtDateShort(dates[DAYS.indexOf(d)]) : '';
-    return `<button class="${d===day?'active':''}" onclick="renderKitaEditor('${d}')">${d.substring(0,2)}${dateStr?`<br><span style="font-size:9.5px;font-weight:400;opacity:.75">${dateStr}</span>`:''}</button>`;
+    return `<button class="${d===day?'active':''}" onclick="guardDayAccess('${d}',()=>renderKitaEditor('${d}'))">${d.substring(0,2)}${dateStr?`<br><span style="font-size:9.5px;font-weight:400;opacity:.75">${dateStr}</span>`:''}</button>`;
   }).join('');
   renderActiveDaysMgrInto('kita-active-days-mgr');
 
@@ -2132,7 +2365,7 @@ function updateKitaSko(day, i, val) {
   k.sko = val;
   // Sync children array length
   if(!k.skoChildren) k.skoChildren = [];
-  while(k.skoChildren.length < val) k.skoChildren.push({name:'', allergen:''});
+  while(k.skoChildren.length < val) k.skoChildren.push({name:'', kostform:'', dessert:'', allergen:''});
   if(k.skoChildren.length > val) k.skoChildren.length = val;
 }
 
@@ -2147,13 +2380,14 @@ function applySkoChildrenCopy(si) {
   const n = srcChildren.length;
   target.sko = n;
   if(!target.skoChildren) target.skoChildren = [];
-  while(target.skoChildren.length < n) target.skoChildren.push({name:'', kostform:'', allergen:''});
+  while(target.skoChildren.length < n) target.skoChildren.push({name:'', kostform:'', dessert:'', allergen:''});
   if(target.skoChildren.length > n) target.skoChildren.length = n;
   for(let i = 0; i < target.skoChildren.length; i++) {
     const s = srcChildren[i];
     if(!s) break;
     if(s.name) target.skoChildren[i].name = s.name;
     if(s.kostform && !target.skoChildren[i].kostform) target.skoChildren[i].kostform = s.kostform;
+    if(s.dessert && !target.skoChildren[i].dessert) target.skoChildren[i].dessert = s.dessert;
     if(s.allergen && !target.skoChildren[i].allergen) target.skoChildren[i].allergen = s.allergen;
   }
   renderKitaRows(_skoDay);
@@ -2165,7 +2399,7 @@ function openSkoChildrenEditor(day, kitaIdx) {
   const k = currentData().kitas[day][kitaIdx];
   if(!k.skoChildren) k.skoChildren = [];
   const numChildren = k.sko || 0;
-  while(k.skoChildren.length < numChildren) k.skoChildren.push({name:'', kostform:'', allergen:''});
+  while(k.skoChildren.length < numChildren) k.skoChildren.push({name:'', kostform:'', dessert:'', allergen:''});
 
   const backdrop = document.getElementById('modal-backdrop');
   const content = document.getElementById('modal-content');
@@ -2200,7 +2434,7 @@ function openSkoChildrenEditor(day, kitaIdx) {
   content.innerHTML = `
     <div style="font-size:13px;font-weight:700;color:#8B0000;margin-bottom:12px;border-bottom:2px solid #fff0f0;padding-bottom:8px">
       ⭐ Sonderkost Kinder – ${esc(k.name)}
-      <div style="font-size:11px;font-weight:400;color:#888;margin-top:3px">Name · Kostform (groß auf Etikett) · Allergie/Hinweis</div>
+      <div style="font-size:11px;font-weight:400;color:#888;margin-top:3px">Name · Kostform (groß auf Etikett) · Dessert (eigenes, optional) · Allergie/Hinweis</div>
     </div>
     ${_skoSources.length ? '' : '<div style="background:#f7f7f7;border:1px solid #eee;border-radius:5px;padding:7px 10px;margin-bottom:10px;font-size:10.5px;color:#888">📋 Keine Namen aus anderen Tagen/Wochen für diese Kita gefunden – sobald an einem anderen Tag Sonderkost-Namen für „' + esc(k.name) + '" eingetragen sind, kannst du sie hier übernehmen.</div>'}
     ${_skoSources.length ? `
@@ -2228,6 +2462,12 @@ function openSkoChildrenEditor(day, kitaIdx) {
             list="sko-kostform-list"
             style="flex:1;padding:5px 8px;border:1px solid #ef9a9a;border-radius:4px;font-size:13px;font-weight:800;color:#8B0000"
             oninput="updateSkoChild('${day}',${kitaIdx},${ci},'kostform',this.value)">
+        </div>
+        <div style="display:flex;gap:7px;align-items:center;margin-bottom:5px">
+          <span style="font-size:11px;color:#555;min-width:38px">Dessert</span>
+          <input value="${esc(ch.dessert||'')}" placeholder="Eigenes Dessert (optional, sonst normales Dessert des Tages)…"
+            style="flex:1;padding:5px 8px;border:1px solid #ef9a9a;border-radius:4px;font-size:12px;font-weight:700;color:#7a4a00"
+            oninput="updateSkoChild('${day}',${kitaIdx},${ci},'dessert',this.value)">
         </div>
         <div style="display:flex;gap:7px;align-items:center">
           <span style="font-size:11px;color:#555;min-width:38px">Allergie</span>
@@ -2810,7 +3050,8 @@ function applyLabelFormat() {
   let psSt = document.getElementById('print-style');
   if(!psSt) { psSt = document.createElement('style'); psSt.id='print-style'; document.head.appendChild(psSt); }
   psSt.textContent = `@media print {
-    @page { size: ${ps.w}mm ${ps.h}mm; margin: 8mm; }
+    @page { size: ${ps.w}mm ${ps.h}mm; margin: 0; }
+    body { margin: 0; }
     .labels-grid, #labels-grid-inner {
       display: grid !important;
       grid-template-columns: repeat(${cols}, ${wPx}px) !important;
@@ -2833,11 +3074,12 @@ function toggleCustomSize() {
   if(el) el.style.display = v==='custom' ? 'flex' : 'none';
 }
 
-function setFormat(w,h,cols,page) {
+function setFormat(w,h,cols,page,gap) {
   document.getElementById('fmt-w').value=w;
   document.getElementById('fmt-h').value=h;
   document.getElementById('fmt-cols').value=cols;
   if(page) document.getElementById('fmt-page').value=page;
+  if(gap !== undefined) document.getElementById('fmt-gap').value=gap;
   applyLabelFormat();
 }
 
@@ -3214,7 +3456,7 @@ function renderSkoChildrenRows(komDataList, cols) {
           const key = kd.kita.name + '||' + c.name;
           if(seen.has(key)) return;
           seen.add(key);
-          items.push({kita: kd.kita.name, name: c.name, kostform: c.kostform, allergen: c.allergen});
+          items.push({kita: kd.kita.name, name: c.name, kostform: c.kostform, dessert: c.dessert, allergen: c.allergen});
         });
       }
     });
@@ -3223,7 +3465,7 @@ function renderSkoChildrenRows(komDataList, cols) {
   const span = (cols||3) - 1;
   return items.map(c => `
     <tr><td></td><td colspan="${span}" style="background:#fff8f8;padding:3px 8px;font-size:10.5px;border-bottom:1px solid #f3d6d6">
-      👶 <strong>${esc(c.name)}</strong> <span style="color:#888;font-weight:400">(${esc(c.kita)})</span>${c.kostform ? ` – <span style="color:#8B0000;font-weight:700">${esc(c.kostform)}</span>` : ''}${c.allergen ? ` · ⚠ ${esc(c.allergen)}` : ''}
+      👶 <strong>${esc(c.name)}</strong> <span style="color:#888;font-weight:400">(${esc(c.kita)})</span>${c.kostform ? ` – <span style="color:#8B0000;font-weight:700">${esc(c.kostform)}</span>` : ''}${c.dessert ? ` · <span style="color:#7a4a00">Dessert: <strong>${esc(c.dessert)}</strong></span>` : ''}${c.allergen ? ` · ⚠ ${esc(c.allergen)}` : ''}
     </td></tr>`).join('');
 }
 
@@ -3235,6 +3477,7 @@ function renderKomBlock(kitaData, showKitaTitle=true, standortTag='') {
   const year = parseInt(document.getElementById('cfg-jahr').value)||state.activeJahr;
 
   let html = `<div class="kom-kita-block">`;
+  html += `<h2 class="kom-page-title">📋 Produktionsliste</h2>`;
   html += `<div class="kom-kita-title">
     <span>🏠 ${esc(k.name)}${standortTag}</span>
     <span class="kom-kita-subtitle">${esc(kitaData.day)} · ${kitaData.dateStr} · KW ${String(kw).padStart(2,'0')} ${year} · ${totalPers} Personen gesamt</span>
@@ -3259,7 +3502,7 @@ function renderKomBlock(kitaData, showKitaTitle=true, standortTag='') {
       if(row.cls === 'sko' && (row.skoChildren||[]).some(c=>c.name)) {
         const childRows = row.skoChildren.filter(c=>c.name).map(c =>
           `<tr><td></td><td colspan="6" style="background:#fff8f8;padding:3px 8px;font-size:10.5px;border-bottom:1px solid #f3d6d6">
-            👶 <strong>${esc(c.name)}</strong>${c.kostform ? ` – <span style="color:#8B0000;font-weight:700">${esc(c.kostform)}</span>` : ''}${c.allergen ? ` · ⚠ ${esc(c.allergen)}` : ''}
+            👶 <strong>${esc(c.name)}</strong>${c.kostform ? ` – <span style="color:#8B0000;font-weight:700">${esc(c.kostform)}</span>` : ''}${c.dessert ? ` · <span style="color:#7a4a00">Dessert: <strong>${esc(c.dessert)}</strong></span>` : ''}${c.allergen ? ` · ⚠ ${esc(c.allergen)}` : ''}
           </td></tr>`
         ).join('');
         html += childRows;
@@ -3427,7 +3670,8 @@ function renderKomAllBlockMulti(day, standort) {
   }
 
   function renderTotalTable(totalRows, headerLabel, komDataForChildren) {
-    let h = `<div class="kom-all-header">
+    let h = `<h2 class="kom-page-title">📋 Produktionsliste</h2>
+    <div class="kom-all-header">
       <span>${headerLabel}</span>
       <span style="font-size:11px;color:#666">${kwStr}</span>
     </div>
@@ -3827,6 +4071,8 @@ function initUI() {
   renderStandortTable();
   renderActiveDaysMgr();
   renderLogoPreviews();
+  renderAccountsList();
+  applyRoleRestrictions();
   applyLabelFormat();
   // Standort-Mehrfachauswahl: standardmäßig sind alle Standorte ausgewählt
   state.standorte.forEach(s => { lblSelStandorte.add(s.name); komSelStandorte.add(s.name); lsSelStandorte.add(s.name); });
@@ -3834,6 +4080,8 @@ function initUI() {
 
 // ═══════════════════════════════════════════════
 //  SERVER-SYNC: Login, Laden, automatisches Speichern
+//  (schützt den ganzen Server – zusätzlich zu den Benutzerkonten oben,
+//  die weiterhin NUR in diesem Browser lokal gespeichert sind)
 // ═══════════════════════════════════════════════
 let __lastSavedSnapshot = null;
 let __autosaveTimer = null;
@@ -3843,23 +4091,33 @@ function setSyncStatus(text) {
   if (el) el.textContent = text;
 }
 
-async function loadStateFromServer() {
+function startAppAfterServerAuth() {
+  // Nach erfolgreichem Server-Login: Daten laden, dann wie gewohnt die
+  // Benutzerkonten-Anmeldung (falls Konten existieren) oder direkt initUI().
+  loadStateFromServer(() => {
+    const accounts = loadAccounts();
+    if (!accounts.length) { initUI(); return; }
+    document.getElementById('acc-login-screen').style.display = 'flex';
+    document.getElementById('acc-login-user').focus();
+  });
+}
+
+function loadStateFromServer(afterLoad) {
   setSyncStatus('🔄 Lade Daten…');
-  try {
-    const res = await fetch('/api/state', { credentials: 'include' });
-    if (res.ok) {
-      const data = await res.json();
+  fetch('/api/state', { credentials: 'include' })
+    .then(res => res.ok ? res.json() : {})
+    .then(data => {
       if (data && typeof data === 'object' && Object.keys(data).length) {
         Object.assign(state, data);
       }
-    }
-  } catch (e) {
-    console.warn('Konnte Daten nicht vom Server laden:', e);
-  }
-  __lastSavedSnapshot = JSON.stringify(state);
-  initUI();
-  setSyncStatus('✅ Synchronisiert');
-  startAutosaveLoop();
+    })
+    .catch(e => console.warn('Konnte Daten nicht vom Server laden:', e))
+    .finally(() => {
+      __lastSavedSnapshot = JSON.stringify(state);
+      setSyncStatus('✅ Synchronisiert');
+      startAutosaveLoop();
+      if (afterLoad) afterLoad();
+    });
 }
 
 async function saveStateToServer(snapshot) {
@@ -3874,7 +4132,7 @@ async function saveStateToServer(snapshot) {
       __lastSavedSnapshot = snapshot;
       setSyncStatus('✅ Gespeichert');
     } else if (res.status === 401) {
-      setSyncStatus('⚠️ Abgemeldet – bitte neu laden');
+      setSyncStatus('⚠️ Server-Login abgelaufen – bitte neu laden');
     } else {
       let detail = '';
       try { const j = await res.json(); detail = j.details || j.error || ''; } catch(e2) {}
@@ -3894,10 +4152,9 @@ function startAutosaveLoop() {
       setSyncStatus('💾 Speichere…');
       saveStateToServer(snap);
     }
-  }, 4000); // alle 4 Sekunden auf Änderungen prüfen
+  }, 4000);
 }
 
-// Beim Verlassen der Seite ein letztes Mal versuchen zu speichern
 window.addEventListener('beforeunload', () => {
   const snap = JSON.stringify(state);
   if (snap !== __lastSavedSnapshot && navigator.sendBeacon) {
@@ -3912,22 +4169,21 @@ async function serverLogout() {
   location.reload();
 }
 
-function showLoginScreen(errorMsg) {
-  document.getElementById('login-screen').style.display = 'flex';
-  const err = document.getElementById('login-error');
+function showServerLoginScreen(errorMsg) {
+  document.getElementById('server-login-screen').style.display = 'flex';
+  const err = document.getElementById('server-login-error');
   if (errorMsg) { err.textContent = errorMsg; err.style.display = 'block'; }
   else { err.style.display = 'none'; }
-  document.getElementById('login-status').textContent = '';
-  document.getElementById('login-pw').focus();
+  document.getElementById('server-login-status').textContent = '';
+  document.getElementById('server-login-pw').focus();
+}
+function hideServerLoginScreen() {
+  document.getElementById('server-login-screen').style.display = 'none';
 }
 
-function hideLoginScreen() {
-  document.getElementById('login-screen').style.display = 'none';
-}
-
-async function attemptLogin() {
-  const pw = document.getElementById('login-pw').value;
-  document.getElementById('login-status').textContent = 'Anmelden…';
+async function attemptServerLogin() {
+  const pw = document.getElementById('server-login-pw').value;
+  document.getElementById('server-login-status').textContent = 'Anmelden…';
   try {
     const res = await fetch('/api/login', {
       method: 'POST',
@@ -3936,34 +4192,34 @@ async function attemptLogin() {
       body: JSON.stringify({ password: pw })
     });
     if (res.ok) {
-      hideLoginScreen();
-      await loadStateFromServer();
+      hideServerLoginScreen();
+      startAppAfterServerAuth();
     } else {
-      showLoginScreen('Falsches Passwort');
+      showServerLoginScreen('Falsches Passwort');
     }
   } catch (e) {
-    document.getElementById('login-status').textContent = '';
-    showLoginScreen('Keine Verbindung zum Server');
+    document.getElementById('server-login-status').textContent = '';
+    showServerLoginScreen('Keine Verbindung zum Server');
   }
 }
 
-document.getElementById('login-btn').addEventListener('click', attemptLogin);
-document.getElementById('login-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+document.getElementById('server-login-btn').addEventListener('click', attemptServerLogin);
+document.getElementById('server-login-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptServerLogin(); });
 
-// Beim Start prüfen: schon eingeloggt (Cookie noch gültig)? Dann direkt laden,
-// sonst Login-Bildschirm zeigen.
-(async function bootstrap() {
+// Beim Start prüfen: Server-Session schon gültig (Cookie)? Dann direkt weiter,
+// sonst Server-Login-Bildschirm zeigen.
+(async function bootstrapServer() {
   try {
     const res = await fetch('/api/session', { credentials: 'include' });
     const data = await res.json();
     if (data.authed) {
-      hideLoginScreen();
-      await loadStateFromServer();
+      hideServerLoginScreen();
+      startAppAfterServerAuth();
     } else {
-      showLoginScreen();
+      showServerLoginScreen();
     }
   } catch (e) {
-    showLoginScreen('Keine Verbindung zum Server');
+    showServerLoginScreen('Keine Verbindung zum Server');
   }
 })();
 
@@ -4214,6 +4470,14 @@ function renderKomBlockWithTemp(kitaData, standortTag) {
       const [color, bg] = KOM_COLORS[row.cls] || ['#333','#eee'];
       html += `<tr><td colspan="8" class="kom-section-header" style="color:${color};background:${bg}">${esc(row.menu)}</td></tr>`;
       lastMenu = row.menu;
+      if(row.cls === 'sko' && (row.skoChildren||[]).some(c=>c.name)) {
+        const childRows = row.skoChildren.filter(c=>c.name).map(c =>
+          `<tr><td colspan="8" style="background:#fff8f8;padding:3px 8px;font-size:10.5px;border-bottom:1px solid #f3d6d6">
+            👶 <strong>${esc(c.name)}</strong>${c.kostform ? ` – <span style="color:#8B0000;font-weight:700">${esc(c.kostform)}</span>` : ''}${c.dessert ? ` · <span style="color:#7a4a00">Dessert: <strong>${esc(c.dessert)}</strong></span>` : ''}${c.allergen ? ` · ⚠ ${esc(c.allergen)}` : ''}
+          </td></tr>`
+        ).join('');
+        html += childRows;
+      }
     }
     const portionLabel = gppToPortionLabel(row.gpp, row.unit);
     const gppDisplay = portionLabel !== `${row.gpp} ${row.unit}`
@@ -4270,11 +4534,12 @@ function buildLieferscheinHTML() {
     else if(copyKey === 'kueche') logoSrc = state.logos && state.logos.kueche;
     else if(copyKey === 'kreativ') logoSrc = state.logos && state.logos.kreativ;
     const logoHtml = logoSrc ? `<div style="width:280px;height:70px;border:1px solid #ddd;border-radius:4px;overflow:hidden;margin-bottom:10px;background:#fff"><img src="${logoSrc}" style="width:100%;height:100%;object-fit:fill"></div>` : '';
+    const pageHeading = copyKey === 'kueche' ? '📋 Kommissionsliste' : '🚚 Lieferschein';
     return `
     <div class="ls-page">
       <span class="ls-copy-tag">Exemplar: ${esc(copyTag)}</span>
       ${logoHtml}
-      <h2>🚚 Lieferschein</h2>
+      <h2>${pageHeading}</h2>
       <div class="ls-blocks">
         <div class="ls-block"><b>Veranstalter</b>${esc(entry.standort)}${info.kontakt?'<br>'+esc(info.kontakt):''}${info.adresse?'<br>'+esc(info.adresse).replace(/\n/g,'<br>'):''}${info.tel?'<br>'+esc(info.tel):''}</div>
         <div class="ls-block"><b>Lieferadresse</b>${esc(k.name)}<br>${esc(addr.address||'').replace(/\n/g,'<br>')}${addr.ansprechpartner?'<br>👤 '+esc(addr.ansprechpartner).replace(/\n/g,'<br>'):''}</div>
