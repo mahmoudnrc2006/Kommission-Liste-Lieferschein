@@ -505,7 +505,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
         </div>
         <div class="panel-body">
           <table class="kita-table">
-            <thead><tr><th>#</th><th>Standortname</th><th>Farbe</th><th style="width:110px">🚚 Lieferschein</th><th></th></tr></thead>
+            <thead><tr><th>#</th><th style="width:60px">Reihenfolge</th><th>Standortname</th><th>Farbe</th><th style="width:110px">🚚 Lieferschein</th><th></th></tr></thead>
             <tbody id="standort-table"></tbody>
           </table>
           <button class="add-row-btn blue" onclick="addStandort()" style="margin-top:8px">+ Standort hinzufügen</button>
@@ -1440,6 +1440,10 @@ function renderStandortTable() {
   const tbody = document.getElementById('standort-table');
   tbody.innerHTML = state.standorte.map((s,i) => `<tr>
     <td class="kita-num">${i+1}</td>
+    <td style="white-space:nowrap">
+      <button class="icon-btn" title="Nach oben" onclick="moveStandort(${i},-1)" ${i===0?'disabled':''} style="border:1px solid var(--gray-border);background:#fff;border-radius:4px;padding:2px 6px;cursor:${i===0?'default':'pointer'};opacity:${i===0?.3:1};margin-right:2px">↑</button>
+      <button class="icon-btn" title="Nach unten" onclick="moveStandort(${i},1)" ${i===state.standorte.length-1?'disabled':''} style="border:1px solid var(--gray-border);background:#fff;border-radius:4px;padding:2px 6px;cursor:${i===state.standorte.length-1?'default':'pointer'};opacity:${i===state.standorte.length-1?.3:1}">↓</button>
+    </td>
     <td><input class="wide" value="${esc(s.name)}" oninput="updateStandortName(${i},this.value)"></td>
     <td><input type="color" value="${s.color}" onchange="updateStandortColor(${i},this.value)" style="width:40px;height:26px;padding:1px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
     <td style="white-space:nowrap">
@@ -1448,6 +1452,15 @@ function renderStandortTable() {
     </td>
     <td>${state.standorte.length>1?`<button class="del-btn" onclick="delStandort(${i})">×</button>`:''}</td>
   </tr>`).join('');
+}
+
+function moveStandort(i, dir) {
+  const j = i + dir;
+  if(j < 0 || j >= state.standorte.length) return;
+  const arr = state.standorte;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  renderStandortTable();
+  renderStandortSidebar();
 }
 
 function handleGlobalLogoUpload(key, input) {
@@ -2859,7 +2872,11 @@ function buildAllStandortLabels(day) {
 function renderLabels(day) {
   currentLblDay = day;
   const nav = document.getElementById('lbl-day-nav');
-  nav.innerHTML = getActiveDays().map(d=>`<button class="${d===day?'active':''}" onclick="renderLabels('${d}')">${d.substring(0,2)}</button>`).join('');
+  const dates = state.activeKW ? getKWDates(state.activeKW, state.activeJahr) : null;
+  nav.innerHTML = getActiveDays().map(d=>{
+    const dateStr = dates ? fmtDateShort(dates[DAYS.indexOf(d)]) : '';
+    return `<button class="${d===day?'active':''}" onclick="renderLabels('${d}')">${d.substring(0,2)}${dateStr?`<br><span style="font-size:9.5px;font-weight:400;opacity:.75">${dateStr}</span>`:''}</button>`;
+  }).join('');
 
   populateLblStandortSel();
   let labels = buildAllStandortLabels(day);
