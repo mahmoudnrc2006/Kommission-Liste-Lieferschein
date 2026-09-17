@@ -19,6 +19,13 @@ body.role-viewer input:not([type=file]),body.role-viewer textarea,body.role-view
 body.role-viewer input[type=checkbox],body.role-viewer input[type=radio]{opacity:.5}
 body.role-viewer .btn-primary,body.role-viewer .btn-danger,body.role-viewer .btn-secondary:not(.role-allowed),body.role-viewer .add-row-btn{pointer-events:none;opacity:.4;filter:grayscale(1)}
 body.role-viewer .lbl-format-panel button:not(.no-print-restrict){pointer-events:auto;opacity:1;filter:none}
+/* Rolle "Nur Zahlen": alles gesperrt AUSSER den Mengen-Feldern in Kitas & Mengen */
+body.role-zahlen input:not(.kita-zahl),body.role-zahlen textarea{pointer-events:none;background:#f2f2f2!important;opacity:.75}
+body.role-zahlen select:not(.role-allowed){pointer-events:none;background:#f2f2f2!important;opacity:.75}
+body.role-zahlen button:not(.role-allowed){pointer-events:none;opacity:.4;filter:grayscale(1)}
+body.role-zahlen .add-row-btn,body.role-zahlen .del-btn{display:none!important}
+body.role-zahlen #sidebar a,body.role-zahlen .day-nav button,body.role-zahlen .nav-tab{pointer-events:auto!important;opacity:1!important;filter:none!important}
+body.role-zahlen .kita-zahl{pointer-events:auto!important;background:#fff!important;opacity:1!important;border-color:var(--blue-mid)!important}
 body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh;overflow:hidden;font-size:13px}
 #sidebar{width:210px;min-width:210px;background:#1F4E79;color:#fff;display:flex;flex-direction:column}
 #sidebar .logo{background:#0d2d4a;padding:14px;font-size:13px;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1)}
@@ -103,6 +110,8 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 #label-area{padding:8px 0}
 .label-day-title{font-size:12px;font-weight:700;color:var(--blue-dark);padding:7px 11px;background:var(--blue-light);border-radius:4px;margin-bottom:8px}
 .labels-grid{display:flex;flex-wrap:wrap;gap:var(--lbl-gap,6px)}
+.lbl-page{background:#fff;border:1px solid #d5dbe2;border-radius:4px;padding:4px;margin-bottom:14px;width:max-content}
+.lbl-page::after{content:attr(data-sheet);display:block;font-size:10px;color:#aaa;padding-top:4px}
 .lbl{
   width:var(--lbl-w,170px);height:var(--lbl-h,auto);
   border:1px solid #ccc;border-radius:4px;
@@ -353,7 +362,6 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 <!-- ═══ Login-Bildschirm (nur wenn Benutzerkonten angelegt sind) ═══ -->
 <div id="acc-login-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1A3A5C,#2C5F8A);
   align-items:center;justify-content:center;z-index:99999;font-family:inherit">
-
   <div style="background:#fff;border-radius:12px;padding:32px 30px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
     <div style="text-align:center;font-size:20px;font-weight:800;color:var(--blue-dark,#1A3A5C);margin-bottom:4px">🏷 Etikett-Manager</div>
     <div style="text-align:center;font-size:12px;color:#888;margin-bottom:20px">Bitte anmelden</div>
@@ -394,9 +402,15 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 
 <div id="sidebar">
   <div class="logo">🏷 Etikett Manager<span id="sidebar-sub">Kommissions-System</span></div>
-  <div id="sync-status" style="font-size:10px;color:#8FA8C2;padding:0 16px 8px;display:flex;align-items:center;gap:6px;justify-content:space-between">
+  <div id="sync-status" style="font-size:10px;color:#8FA8C2;padding:0 16px 6px;display:flex;align-items:center;gap:6px;justify-content:space-between">
     <span id="sync-status-text">🔄 Synchronisiert</span>
-    <a onclick="serverLogout()" style="cursor:pointer;text-decoration:underline;opacity:.8">Server abmelden</a>
+    <a onclick="serverLogout()" style="cursor:pointer;text-decoration:underline;opacity:.8">Abmelden</a>
+  </div>
+  <div style="padding:0 12px 10px">
+    <button class="role-allowed" onclick="manualSave()" title="Jetzt online speichern – gespeicherte Daten sind beim nächsten Öffnen wieder da"
+      style="width:100%;padding:7px;border:none;border-radius:5px;background:#2E75B6;color:#fff;font-size:12px;font-weight:700;cursor:pointer">
+      💾 Online speichern
+    </button>
   </div>
   <nav>
     <div class="nav-sep">Standorte</div>
@@ -553,7 +567,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
           <div style="font-size:11.5px;color:#666;margin-bottom:12px">
             Solange kein Konto angelegt ist, ist das Programm frei zugänglich (wie bisher). Sobald mindestens ein Konto existiert, wird bei jedem Öffnen ein Login verlangt.<br>
             <strong>Rollen:</strong> <em>Nur Ansicht</em> – nichts bearbeiten/speichern. <em>Eingeschränkt</em> – nur heute &amp; Zukunft bearbeitbar, Vergangenheit nur ansehen. <em>Admin</em> – alles, inkl. Benutzerverwaltung.<br>
-            Konten werden über den Server synchronisiert – dasselbe Konto funktioniert also von jedem Gerät aus.
+            Konten werden über den Server synchronisiert – dasselbe Konto funktioniert von jedem Gerät aus.
           </div>
           <div id="acc-list" style="margin-bottom:14px"></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
@@ -563,6 +577,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
               <label>Rolle</label>
               <select id="acc-new-role" onchange="document.getElementById('acc-new-email-wrap').style.display=(this.value==='admin')?'block':'none'" style="padding:5px 8px;border:1px solid var(--gray-border);border-radius:4px;font-size:12.5px">
                 <option value="viewer">Nur Ansicht</option>
+                <option value="zahlen">Nur Zahlen eintragen (Kitas &amp; Mengen)</option>
                 <option value="limited">Eingeschränkt (heute &amp; Zukunft)</option>
                 <option value="admin">Admin (alles)</option>
               </select>
@@ -777,8 +792,11 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
         <div class="fmt-grid">
           <div class="field"><label>Breite (mm)</label><input id="fmt-w" type="number" value="70" min="20" max="200" step="0.1" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Höhe (mm)</label><input id="fmt-h" type="number" value="42.3" min="15" max="200" step="0.1" oninput="applyLabelFormat()"></div>
-          <div class="field"><label>Pro Zeile</label><input id="fmt-cols" type="number" value="3" min="1" max="10" oninput="applyLabelFormat()"></div>
-          <div class="field"><label>Abstand (mm)</label><input id="fmt-gap" type="number" value="0" min="0" max="20" oninput="applyLabelFormat()"></div>
+          <div class="field"><label>Pro Zeile</label><input id="fmt-cols" type="number" value="3" min="1" max="10" oninput="renderLabels(currentLblDay)"></div>
+          <div class="field"><label>Zeilen/Seite</label><input id="fmt-rows" type="number" value="7" min="1" max="20" oninput="renderLabels(currentLblDay)"></div>
+          <div class="field"><label>Abstand (mm)</label><input id="fmt-gap" type="number" value="0" min="0" max="20" step="0.1" oninput="applyLabelFormat()"></div>
+          <div class="field"><label title="Feinjustierung: verschiebt den gesamten Druck nach rechts (+) oder links (−)">Versatz X (mm)</label><input id="fmt-off-x" type="number" value="0" min="-20" max="20" step="0.1" oninput="applyLabelFormat()"></div>
+          <div class="field"><label title="Feinjustierung: verschiebt den gesamten Druck nach unten (+) oder oben (−)">Versatz Y (mm)</label><input id="fmt-off-y" type="number" value="0" min="-20" max="20" step="0.1" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Schrift: Menge</label><input id="fmt-qsize" type="number" value="22" min="10" max="60" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Schrift: Kita</label><input id="fmt-kita-size" type="number" value="12" min="7" max="30" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Schrift: Menü</label><input id="fmt-menu-size" type="number" value="10" min="6" max="24" oninput="applyLabelFormat()"></div>
@@ -791,7 +809,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(62,38,4,'A4',3)">62×38mm · 4/Zeile · A4</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(80,50,3,'A4',3)">80×50mm · 3/Zeile · A4</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(100,60,2,'A4',3)">100×60mm · 2/Zeile · A4</button>
-          <button class="btn-secondary" style="font-size:11px;font-weight:700;border-color:var(--blue-dark);color:var(--blue-dark)" onclick="setFormat(70,42.3,3,'A4',0)">⭐ 70×42,3mm · 3/Zeile · A4 (TopStick 8708, 21/Bogen)</button>
+          <button class="btn-secondary" style="font-size:11px;font-weight:700;border-color:var(--blue-dark);color:var(--blue-dark)" onclick="setFormat(70,42.3,3,'A4',0,7)">⭐ 70×42,3mm · 3×7 · A4 (TopStick 8708, 21/Bogen)</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(105,74,2,'A4')">A6 (105×74mm) · 2/Zeile · A4</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(148,105,1,'A5')">A5 (148×105mm) · 1/Zeile · A5</button>
           <button class="btn-secondary" style="font-size:11px" onclick="setFormat(105,148,1,'A6')">A6 (105×148mm) · 1/Zeile · A6</button>
@@ -1859,14 +1877,14 @@ const EMAILJS_SERVICE_ID  = 'service_kbbpu0n';
 const EMAILJS_TEMPLATE_ID = 'template_ghbhwg5';
 const EMAILJS_PUBLIC_KEY  = 'lbt5tddNLqVqGTG-_';
 
-// Konten sind Teil des synchronisierten Server-Zustands (state.accounts) –
-// NICHT mehr lokal im Browser gespeichert. So funktioniert dasselbe Konto
-// von jedem Gerät aus, das sich mit dem Server verbindet.
+// Konten gehören zum synchronisierten Server-Zustand – dasselbe Konto
+// funktioniert dadurch von jedem Gerät aus.
 function loadAccounts() {
   return state.accounts || [];
 }
 function saveAccounts(accounts) {
   state.accounts = accounts;
+  if (typeof saveStateToServer === 'function') saveStateToServer(JSON.stringify(state));
 }
 
 function isPastDay(day) {
@@ -1882,6 +1900,7 @@ function isPastDay(day) {
 }
 
 function isViewerRole() { return currentAccount && currentAccount.role === 'viewer'; }
+function isZahlenRole() { return currentAccount && currentAccount.role === 'zahlen'; }
 function isAdminRole()  { return !currentAccount || currentAccount.role === 'admin'; } // kein Konto = frei
 
 // Ruft onAllowed() auf, wenn dieser Tag für die aktuelle Rolle bearbeitbar ist.
@@ -1902,7 +1921,7 @@ function renderAccountsList() {
   const el = document.getElementById('acc-list');
   if(!el) return;
   const accounts = loadAccounts();
-  const roleLabel = {viewer:'Nur Ansicht', limited:'Eingeschränkt', admin:'Admin'};
+  const roleLabel = {viewer:'Nur Ansicht', zahlen:'Nur Zahlen eintragen', limited:'Eingeschränkt', admin:'Admin'};
   if(!accounts.length) { el.innerHTML = '<div style="font-size:12px;color:#999">Noch keine Konten angelegt.</div>'; return; }
   el.innerHTML = `<table style="width:100%;font-size:12.5px;border-collapse:collapse">
     <thead><tr style="text-align:left;color:#666"><th style="padding:4px 6px">Benutzername</th><th style="padding:4px 6px">Rolle</th><th style="padding:4px 6px">E-Mail</th><th></th></tr></thead>
@@ -1928,7 +1947,6 @@ function addAccount() {
   if(role === 'admin' && !email) { status.style.color='#c0392b'; status.textContent='⚠ Für Admin-Konten bitte eine E-Mail angeben (für „Passwort vergessen").'; return; }
   accounts.push({username, password, role, email: role==='admin' ? email : ''});
   saveAccounts(accounts);
-  if(typeof saveStateToServer === 'function') saveStateToServer(JSON.stringify(state));
   document.getElementById('acc-new-user').value = '';
   document.getElementById('acc-new-pw').value = '';
   document.getElementById('acc-new-email').value = '';
@@ -1947,13 +1965,19 @@ function deleteAccount(i) {
   }
   accounts.splice(i, 1);
   saveAccounts(accounts);
-  if(typeof saveStateToServer === 'function') saveStateToServer(JSON.stringify(state));
   renderAccountsList();
 }
 
 function applyRoleRestrictions() {
   document.body.classList.remove('role-viewer');
+  document.body.classList.remove('role-zahlen');
   if(isViewerRole()) document.body.classList.add('role-viewer');
+  if(isZahlenRole()) {
+    document.body.classList.add('role-zahlen');
+    // Jahr/KW/Standort dürfen gewechselt werden (nur Navigation, keine Änderung)
+    ['cfg-jahr','cfg-kw','kita-cfg-jahr','kita-cfg-kw','cfg-standort-sel']
+      .forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('role-allowed'); });
+  }
   const accPanel = document.getElementById('acc-list');
   if(accPanel) {
     const panelBody = accPanel.closest('.panel-body');
@@ -2000,7 +2024,6 @@ function sendForgotPwEmail() {
   ).then(() => {
     accounts[idx].password = newPassword;
     saveAccounts(accounts);
-    if(typeof saveStateToServer === 'function') saveStateToServer(JSON.stringify(state));
     status.style.color='var(--green-dark)'; status.textContent = `✅ Neues Passwort wurde an ${acc.email} gesendet.`;
   }).catch((e) => {
     status.style.color='#c0392b'; status.textContent = '⚠ Senden fehlgeschlagen. EmailJS-Zugangsdaten im Code prüfen.';
@@ -2345,14 +2368,14 @@ function renderKitaRows(day) {
     return `<tr>
     <td class="kita-num">${i+1}</td>
     <td><input class="wide" value="${esc(k.name)}" oninput="updateKita('${day}',${i},'name',this.value)"></td>
-    <td><input type="number" value="${k.pm1||0}" min="0" oninput="updateKita('${day}',${i},'pm1',+this.value)"></td>
-    <td><input type="number" value="${k.pm2||0}" min="0" oninput="updateKita('${day}',${i},'pm2',+this.value)"></td>
-    <td><input type="number" value="${k.lv||0}" min="0" title="Lunchpaket vegetarisch" oninput="updateKita('${day}',${i},'lv',+this.value)"></td>
-    <td><input type="number" value="${k.lg||0}" min="0" title="Lunchpaket mit Geflügelwurst" oninput="updateKita('${day}',${i},'lg',+this.value)"></td>
-    <td><input type="number" value="${k.lsal||0}" min="0" title="Salatbuffet" oninput="updateKita('${day}',${i},'lsal',+this.value)"></td>
+    <td><input class="kita-zahl" type="number" value="${k.pm1||0}" min="0" oninput="updateKita('${day}',${i},'pm1',+this.value)"></td>
+    <td><input class="kita-zahl" type="number" value="${k.pm2||0}" min="0" oninput="updateKita('${day}',${i},'pm2',+this.value)"></td>
+    <td><input class="kita-zahl" type="number" value="${k.lv||0}" min="0" title="Lunchpaket vegetarisch" oninput="updateKita('${day}',${i},'lv',+this.value)"></td>
+    <td><input class="kita-zahl" type="number" value="${k.lg||0}" min="0" title="Lunchpaket mit Geflügelwurst" oninput="updateKita('${day}',${i},'lg',+this.value)"></td>
+    <td><input class="kita-zahl" type="number" value="${k.lsal||0}" min="0" title="Salatbuffet" oninput="updateKita('${day}',${i},'lsal',+this.value)"></td>
     <td style="background:#fff8f8">
       <div style="display:flex;align-items:center;gap:4px">
-        <input type="number" value="${k.sko||0}" min="0" title="Sonderkost Anzahl" oninput="updateKitaSko('${day}',${i},+this.value)" style="width:48px;border-color:#ef9a9a">
+        <input class="kita-zahl" type="number" value="${k.sko||0}" min="0" title="Sonderkost Anzahl" oninput="updateKitaSko('${day}',${i},+this.value)" style="width:48px;border-color:#ef9a9a">
         <button onclick="openSkoChildrenEditor('${day}',${i})" style="font-size:10px;padding:2px 6px;border:1px solid #ef9a9a;background:#fff0f0;color:#8B0000;border-radius:3px;cursor:pointer;white-space:nowrap" title="Namen bearbeiten & von anderem Tag/Woche kopieren">👶 Namen 📋</button>
       </div>
     </td>
@@ -2915,8 +2938,23 @@ function renderLabels(day) {
 
   const kwDisp = `KW ${String(state.activeKW).padStart(2,'0')} ${state.activeJahr}`;
   const standortLabelTxt = document.getElementById('lbl-standort-ms-label') ? document.getElementById('lbl-standort-ms-label').textContent : state.activeStandort;
+  // Etiketten in feste Bögen aufteilen (z. B. 3 × 7 = 21 pro A4-Bogen).
+  // Wichtig: NICHT den Browser selbst umbrechen lassen – sonst verschiebt sich
+  // der Druck von Bogen zu Bogen, weil der Umbruch an einer minimal anderen
+  // Stelle passiert als die Stanzung auf dem Etikettenbogen.
+  const cols = parseInt((document.getElementById('fmt-cols')||{}).value) || 3;
+  const rows = parseInt((document.getElementById('fmt-rows')||{}).value) || 7;
+  const perPage = Math.max(1, cols * rows);
+  let pagesHtml = '';
+  for(let i = 0; i < labels.length; i += perPage) {
+    const sheetNo = Math.floor(i / perPage) + 1;
+    const sheetTotal = Math.ceil(labels.length / perPage);
+    pagesHtml += `<div class="lbl-page" data-sheet="Bogen ${sheetNo} von ${sheetTotal}"><div class="labels-grid">${
+      labels.slice(i, i + perPage).map(renderLabel).join('')
+    }</div></div>`;
+  }
   area.innerHTML = `<div class="label-day-title">${esc(standortLabelTxt)} · ${kwDisp} · ${day} · ${labels.length} Etiketten</div>
-    <div class="labels-grid" id="labels-grid-inner">${labels.map(renderLabel).join('')}</div>`;
+    <div id="labels-grid-inner">${pagesHtml}</div>`;
   applyLabelFormat();
 }
 
@@ -3041,14 +3079,19 @@ function applyLabelFormat() {
     ps = PAGE_SIZES[pageSize]||PAGE_SIZES.A4;
   }
 
-  const wPx = Math.round(w * MM_TO_PX);
-  const hPx = Math.round(h * MM_TO_PX);
-  const gPx = Math.round(gap * MM_TO_PX);
+  // WICHTIG: in Millimeter rechnen, NICHT in gerundeten Pixeln.
+  // 70 mm sind bei 96 dpi 264,57 px – auf 265 px gerundet ergibt das pro
+  // Etikett einen kleinen Fehler, der sich über die Spalten und Zeilen
+  // aufsummiert und den Druck sichtbar verschiebt. Mit mm rechnet der
+  // Browser direkt in der echten Druckeinheit, ohne Rundungsfehler.
+  const rows = parseInt((document.getElementById('fmt-rows')||{}).value)||7;
+  const offX = parseFloat((document.getElementById('fmt-off-x')||{}).value)||0;
+  const offY = parseFloat((document.getElementById('fmt-off-y')||{}).value)||0;
 
   const root = document.documentElement;
-  root.style.setProperty('--lbl-w', wPx+'px');
-  root.style.setProperty('--lbl-h', hPx+'px');
-  root.style.setProperty('--lbl-gap', gPx+'px');
+  root.style.setProperty('--lbl-w', w+'mm');
+  root.style.setProperty('--lbl-h', h+'mm');
+  root.style.setProperty('--lbl-gap', gap+'mm');
   root.style.setProperty('--lbl-qty-size', qsize+'px');
   root.style.setProperty('--lbl-kita-size', kitaSize+'px');
   root.style.setProperty('--lbl-menu-size', menuSize+'px');
@@ -3057,26 +3100,51 @@ function applyLabelFormat() {
   root.style.setProperty('--lbl-allergen-size', allergenSize+'px');
   root.style.setProperty('--lbl-kostform-size', kostformSize+'px');
 
-  // Update grid to fixed columns
-  const grid = document.getElementById('labels-grid-inner');
-  if(grid) {
+  // Raster am Bildschirm (gleiche mm-Maße wie im Druck)
+  document.querySelectorAll('#labels-grid-inner .labels-grid').forEach(grid => {
     grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = `repeat(${cols}, ${wPx}px)`;
-    grid.style.gap = gPx+'px';
-  }
+    grid.style.gridTemplateColumns = `repeat(${cols}, ${w}mm)`;
+    grid.style.gridAutoRows = `${h}mm`;
+    grid.style.gap = `${gap}mm`;
+  });
 
   // Print style with selected page size
   let psSt = document.getElementById('print-style');
   if(!psSt) { psSt = document.createElement('style'); psSt.id='print-style'; document.head.appendChild(psSt); }
   psSt.textContent = `@media print {
     @page { size: ${ps.w}mm ${ps.h}mm; margin: 0; }
-    body { margin: 0; }
-    .labels-grid, #labels-grid-inner {
-      display: grid !important;
-      grid-template-columns: repeat(${cols}, ${wPx}px) !important;
-      gap: ${gPx}px !important;
+    html, body { margin: 0 !important; padding: 0 !important; }
+    /* Jeder Bogen ist exakt eine Seite und wird hart umbrochen. */
+    #labels-grid-inner .lbl-page {
+      width: ${ps.w}mm !important;
+      height: ${ps.h}mm !important;
+      overflow: hidden !important;
+      page-break-after: always;
+      break-after: page;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      border: none !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: transparent !important;
     }
-    .lbl { width: ${wPx}px !important; height: ${hPx}px !important; }
+    #labels-grid-inner .lbl-page::after { display: none !important; }
+    #labels-grid-inner .lbl-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    #labels-grid-inner .labels-grid {
+      display: grid !important;
+      grid-template-columns: repeat(${cols}, ${w}mm) !important;
+      grid-auto-rows: ${h}mm !important;
+      gap: ${gap}mm !important;
+      /* Feinjustierung für den jeweiligen Drucker – verschiebt nur optisch,
+         verändert das Raster selbst nicht. */
+      transform: translate(${offX}mm, ${offY}mm);
+    }
+    .lbl { width: ${w}mm !important; height: ${h}mm !important; box-sizing: border-box !important;
+           border-radius: 0 !important; overflow: hidden !important; }
     .lbl .lbl-qty { font-size: ${qsize}px !important; }
     .lbl .lbl-kita { font-size: ${kitaSize}px !important; }
     .lbl .lbl-menu { font-size: ${menuSize}px !important; }
@@ -3093,13 +3161,15 @@ function toggleCustomSize() {
   if(el) el.style.display = v==='custom' ? 'flex' : 'none';
 }
 
-function setFormat(w,h,cols,page,gap) {
+function setFormat(w,h,cols,page,gap,rows) {
   document.getElementById('fmt-w').value=w;
   document.getElementById('fmt-h').value=h;
   document.getElementById('fmt-cols').value=cols;
+  if(rows !== undefined) document.getElementById('fmt-rows').value=rows;
   if(page) document.getElementById('fmt-page').value=page;
   if(gap !== undefined) document.getElementById('fmt-gap').value=gap;
-  applyLabelFormat();
+  // Neu aufteilen, damit die Anzahl Etiketten pro Bogen zum neuen Raster passt
+  if(currentPage === 'etiketten') renderLabels(currentLblDay); else applyLabelFormat();
 }
 
 // ═══════════════════════════════════════════════
@@ -4073,9 +4143,8 @@ function databankLoadFromStorage() {
 }
 
 function initUI() {
-  // Woche/Jahr/Standort NICHT hart zurücksetzen: nach dem Laden vom Server
-  // sollen die zuletzt gespeicherten Werte erhalten bleiben. Nur falls noch
-  // gar nichts gesetzt ist (ganz neue/leere Installation), sinnvolle Defaults setzen.
+  // Onlineversion: NICHT zurücksetzen – was vom Server geladen wurde, bleibt.
+  // Nur wenn wirklich noch nichts gesetzt ist, sinnvolle Startwerte setzen.
   const cur = getCurrentKW();
   if (state.activeKW === undefined) state.activeKW = null;
   if (!state.activeJahr) state.activeJahr = cur.year;
@@ -4099,8 +4168,6 @@ function initUI() {
 
 // ═══════════════════════════════════════════════
 //  SERVER-SYNC: Login, Laden, automatisches Speichern
-//  (schützt den ganzen Server – zusätzlich zu den Benutzerkonten oben,
-//  die weiterhin NUR in diesem Browser lokal gespeichert sind)
 // ═══════════════════════════════════════════════
 let __lastSavedSnapshot = null;
 let __autosaveTimer = null;
@@ -4110,9 +4177,13 @@ function setSyncStatus(text) {
   if (el) el.textContent = text;
 }
 
+// Manuelles Speichern über den Button in der Seitenleiste
+async function manualSave() {
+  setSyncStatus('💾 Speichere…');
+  await saveStateToServer(JSON.stringify(state));
+}
+
 function startAppAfterServerAuth() {
-  // Nach erfolgreichem Server-Login: Daten laden, dann wie gewohnt die
-  // Benutzerkonten-Anmeldung (falls Konten existieren) oder direkt initUI().
   loadStateFromServer(() => {
     const accounts = loadAccounts();
     if (!accounts.length) { initUI(); return; }
@@ -4149,14 +4220,12 @@ async function saveStateToServer(snapshot) {
     });
     if (res.ok) {
       __lastSavedSnapshot = snapshot;
-      setSyncStatus('✅ Gespeichert');
+      const t = new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+      setSyncStatus('✅ Gespeichert ' + t);
     } else if (res.status === 401) {
-      setSyncStatus('⚠️ Server-Login abgelaufen – bitte neu laden');
+      setSyncStatus('⚠️ Server-Login abgelaufen – neu laden');
     } else {
-      let detail = '';
-      try { const j = await res.json(); detail = j.details || j.error || ''; } catch(e2) {}
       setSyncStatus('⚠️ Speichern fehlgeschlagen');
-      console.error('Speichern fehlgeschlagen:', res.status, detail);
     }
   } catch (e) {
     setSyncStatus('⚠️ Keine Verbindung');
@@ -4210,12 +4279,8 @@ async function attemptServerLogin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: pw })
     });
-    if (res.ok) {
-      hideServerLoginScreen();
-      startAppAfterServerAuth();
-    } else {
-      showServerLoginScreen('Falsches Passwort');
-    }
+    if (res.ok) { hideServerLoginScreen(); startAppAfterServerAuth(); }
+    else { showServerLoginScreen('Falsches Passwort'); }
   } catch (e) {
     document.getElementById('server-login-status').textContent = '';
     showServerLoginScreen('Keine Verbindung zum Server');
@@ -4225,22 +4290,18 @@ async function attemptServerLogin() {
 document.getElementById('server-login-btn').addEventListener('click', attemptServerLogin);
 document.getElementById('server-login-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptServerLogin(); });
 
-// Beim Start prüfen: Server-Session schon gültig (Cookie)? Dann direkt weiter,
-// sonst Server-Login-Bildschirm zeigen.
 (async function bootstrapServer() {
   try {
     const res = await fetch('/api/session', { credentials: 'include' });
     const data = await res.json();
-    if (data.authed) {
-      hideServerLoginScreen();
-      startAppAfterServerAuth();
-    } else {
-      showServerLoginScreen();
-    }
+    if (data.authed) { hideServerLoginScreen(); startAppAfterServerAuth(); }
+    else { showServerLoginScreen(); }
   } catch (e) {
     showServerLoginScreen('Keine Verbindung zum Server');
   }
 })();
+
+
 
 // ═══════════════════════════════════════════════
 //  LIEFERSCHEIN
