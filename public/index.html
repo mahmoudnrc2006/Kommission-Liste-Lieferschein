@@ -116,9 +116,11 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
   width:var(--lbl-w,170px);height:var(--lbl-h,auto);
   border:1px solid #ccc;border-radius:4px;
   padding:6px 8px;font-size:11px;line-height:1.35;
-  display:flex;flex-direction:column;justify-content:space-between;
+  display:flex;flex-direction:column;
   page-break-inside:avoid;break-inside:avoid;overflow:hidden;
 }
+.lbl > div:first-child{flex:1 1 auto;min-height:0;overflow:hidden}
+.lbl > div:last-child{flex:0 0 auto}
 .lbl .lbl-date{font-size:var(--lbl-date-size,9.5px);color:#777}
 .lbl .lbl-kita{font-weight:700;font-size:var(--lbl-kita-size,12px);margin:2px 0 1px}
 .lbl .lbl-menu{font-size:var(--lbl-menu-size,10.5px);color:#444}
@@ -270,6 +272,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
 }
 #print-timestamp-footer{display:none}
 @media print{
+  body.no-print-footer #print-timestamp-footer{display:none!important}
   #print-timestamp-footer{
     display:flex!important;
     position:fixed;
@@ -3884,6 +3887,11 @@ function printLabels() { updatePrintTimestamp(); window.print(); }
 //  PRINT TIMESTAMP
 // ═══════════════════════════════════════════════
 function updatePrintTimestamp() {
+  if(currentPage === 'etiketten') {
+    document.body.classList.add('no-print-footer');
+    return;
+  }
+  document.body.classList.remove('no-print-footer');
   const now = new Date();
   const pad = n => String(n).padStart(2,'0');
   const dateStr = `${pad(now.getDate())}.${pad(now.getMonth()+1)}.${now.getFullYear()}`;
@@ -3914,6 +3922,13 @@ function _printWithTimestamp(fn) {
 // App-Buttons gedruckt wird, wird der Fußzeilentext trotzdem gefüllt.
 window.addEventListener('beforeprint', updatePrintTimestamp);
 window.addEventListener('beforeprint', fitLieferscheinPagesToOnePage);
+window.addEventListener('beforeprint', syncEtikettenPageStyle);
+
+function syncEtikettenPageStyle() {
+  if(currentPage === 'etiketten') return;
+  const el = document.getElementById('print-style');
+  if(el) el.textContent = '';
+}
 
 // ═══════════════════════════════════════════════
 //  KOMPONENTEN KOPIEREN
@@ -4671,9 +4686,17 @@ function printLieferschein() {
 // auf genau eine gedruckte Seite passt, egal wie viele Komponenten/Kitas
 // enthalten sind – durch automatisches Verkleinern des Inhalts bei Bedarf.
 function fitLieferscheinPagesToOnePage() {
-  // Feste Seitengröße fürs Drucken erzwingen (A4), damit wir eine verlässliche
-  // Ziel-Höhe zum Messen haben.
+  // Läuft global bei JEDEM Druck (auch Etiketten, Produktionsliste, ...), weil
+  // es an 'beforeprint' hängt. Darf daher die @page-Regel NUR setzen, wenn
+  // gerade wirklich der Lieferschein gedruckt wird – sonst überschreibt sie
+  // (durch ihre Position im <head>) die 0mm-Randregel der Etiketten-Seite mit
+  // 8mm, selbst wenn gar kein Lieferschein sichtbar ist. Ist eine andere Seite
+  // aktiv, wird die eigene Regel deshalb bewusst geleert statt nur übersprungen.
   let styleEl = document.getElementById('ls-fit-page-style');
+  if(currentPage !== 'lieferschein') {
+    if(styleEl) styleEl.textContent = '';
+    return;
+  }
   if(!styleEl) {
     styleEl = document.createElement('style');
     styleEl.id = 'ls-fit-page-style';
