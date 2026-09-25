@@ -26,6 +26,12 @@ body.role-zahlen button:not(.role-allowed){pointer-events:none;opacity:.4;filter
 body.role-zahlen .add-row-btn,body.role-zahlen .del-btn{display:none!important}
 body.role-zahlen #sidebar a,body.role-zahlen .day-nav button,body.role-zahlen .nav-tab{pointer-events:auto!important;opacity:1!important;filter:none!important}
 body.role-zahlen .kita-zahl{pointer-events:auto!important;background:#fff!important;opacity:1!important;border-color:var(--blue-mid)!important}
+body.role-limited input:not(.role-allowed),body.role-limited textarea:not(.role-allowed){pointer-events:none;background:#f2f2f2!important;opacity:.75}
+body.role-limited select:not(.role-allowed){pointer-events:none;background:#f2f2f2!important;opacity:.75}
+body.role-limited button:not(.role-allowed){pointer-events:none;opacity:.4;filter:grayscale(1)}
+body.role-limited #sidebar a,body.role-limited .day-nav button,body.role-limited .nav-tab{pointer-events:auto!important;opacity:1!important;filter:none!important}
+body.role-limited .lbl-format-panel button:not(.no-print-restrict){pointer-events:auto!important;opacity:1!important;filter:none!important}
+body.role-limited #kita-editor input,body.role-limited #kita-editor textarea,body.role-limited #kita-editor select,body.role-limited #kita-editor button{pointer-events:auto!important;background:#fff!important;opacity:1!important;filter:none!important}
 body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh;overflow:hidden;font-size:13px}
 #sidebar{width:210px;min-width:210px;background:#1F4E79;color:#fff;display:flex;flex-direction:column}
 #sidebar .logo{background:#0d2d4a;padding:14px;font-size:13px;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1)}
@@ -569,7 +575,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
         <div class="panel-body">
           <div style="font-size:11.5px;color:#666;margin-bottom:12px">
             Solange kein Konto angelegt ist, ist das Programm frei zugänglich (wie bisher). Sobald mindestens ein Konto existiert, wird bei jedem Öffnen ein Login verlangt.<br>
-            <strong>Rollen:</strong> <em>Nur Ansicht</em> – nichts bearbeiten/speichern. <em>Eingeschränkt</em> – nur heute &amp; Zukunft bearbeitbar, Vergangenheit nur ansehen. <em>Admin</em> – alles, inkl. Benutzerverwaltung.<br>
+            <strong>Rollen:</strong> <em>Nur Ansicht</em> – nichts bearbeiten/speichern. <em>Nur Zahlen eintragen</em> – nur die Mengen-Felder in Kitas &amp; Mengen. <em>Eingeschränkt</em> – nur die komplette Seite Kitas &amp; Mengen, und dort nur heute &amp; Zukunft (Vergangenheit nur ansehen); Komponenten und alles Weitere gesperrt. <em>Admin</em> – alles, inkl. Benutzerverwaltung.<br>
             Konten werden über den Server synchronisiert – dasselbe Konto funktioniert von jedem Gerät aus.
           </div>
           <div id="acc-list" style="margin-bottom:14px"></div>
@@ -581,7 +587,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
               <select id="acc-new-role" onchange="document.getElementById('acc-new-email-wrap').style.display=(this.value==='admin')?'block':'none'" style="padding:5px 8px;border:1px solid var(--gray-border);border-radius:4px;font-size:12.5px">
                 <option value="viewer">Nur Ansicht</option>
                 <option value="zahlen">Nur Zahlen eintragen (Kitas &amp; Mengen)</option>
-                <option value="limited">Eingeschränkt (heute &amp; Zukunft)</option>
+                <option value="limited">Eingeschränkt (nur Kita &amp; Mengen, heute &amp; Zukunft)</option>
                 <option value="admin">Admin (alles)</option>
               </select>
             </div>
@@ -798,6 +804,7 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
           <div class="field"><label>Pro Zeile</label><input id="fmt-cols" type="number" value="3" min="1" max="10" oninput="renderLabels(currentLblDay)"></div>
           <div class="field"><label>Zeilen/Seite</label><input id="fmt-rows" type="number" value="7" min="1" max="20" oninput="renderLabels(currentLblDay)"></div>
           <div class="field"><label>Abstand (mm)</label><input id="fmt-gap" type="number" value="0" min="0" max="20" step="0.1" oninput="applyLabelFormat()"></div>
+          <div class="field"><label title="Manche Drucker können nicht randlos drucken und schneiden sonst den äußeren Rand ab. Erst mit 0 probieren; schneidet der Drucker etwas ab, hier z. B. 3 eintragen.">Seitenrand (mm)</label><input id="fmt-page-margin" type="number" value="0" min="0" max="15" step="0.5" oninput="renderLabels(currentLblDay)"></div>
           <div class="field"><label title="Feinjustierung: verschiebt den gesamten Druck nach rechts (+) oder links (−)">Versatz X (mm)</label><input id="fmt-off-x" type="number" value="0" min="-20" max="20" step="0.1" oninput="applyLabelFormat()"></div>
           <div class="field"><label title="Feinjustierung: verschiebt den gesamten Druck nach unten (+) oder oben (−)">Versatz Y (mm)</label><input id="fmt-off-y" type="number" value="0" min="-20" max="20" step="0.1" oninput="applyLabelFormat()"></div>
           <div class="field"><label>Schrift: Menge</label><input id="fmt-qsize" type="number" value="22" min="10" max="60" oninput="applyLabelFormat()"></div>
@@ -1904,6 +1911,7 @@ function isPastDay(day) {
 
 function isViewerRole() { return currentAccount && currentAccount.role === 'viewer'; }
 function isZahlenRole() { return currentAccount && currentAccount.role === 'zahlen'; }
+function isLimitedRole() { return currentAccount && currentAccount.role === 'limited'; }
 function isAdminRole()  { return !currentAccount || currentAccount.role === 'admin'; } // kein Konto = frei
 
 // Ruft onAllowed() auf, wenn dieser Tag für die aktuelle Rolle bearbeitbar ist.
@@ -1974,11 +1982,17 @@ function deleteAccount(i) {
 function applyRoleRestrictions() {
   document.body.classList.remove('role-viewer');
   document.body.classList.remove('role-zahlen');
+  document.body.classList.remove('role-limited');
   if(isViewerRole()) document.body.classList.add('role-viewer');
   if(isZahlenRole()) {
     document.body.classList.add('role-zahlen');
     // Jahr/KW/Standort dürfen gewechselt werden (nur Navigation, keine Änderung)
     ['cfg-jahr','cfg-kw','kita-cfg-jahr','kita-cfg-kw','cfg-standort-sel']
+      .forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('role-allowed'); });
+  }
+  if(isLimitedRole()) {
+    document.body.classList.add('role-limited');
+    ['kita-cfg-jahr','kita-cfg-kw','cfg-standort-sel']
       .forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('role-allowed'); });
   }
   const accPanel = document.getElementById('acc-list');
@@ -3090,6 +3104,13 @@ function applyLabelFormat() {
   const rows = parseInt((document.getElementById('fmt-rows')||{}).value)||7;
   const offX = parseFloat((document.getElementById('fmt-off-x')||{}).value)||0;
   const offY = parseFloat((document.getElementById('fmt-off-y')||{}).value)||0;
+  const pageMargin = parseFloat((document.getElementById('fmt-page-margin')||{}).value)||0;
+
+  const usableW = ps.w - 2*pageMargin;
+  const usableH = ps.h - 2*pageMargin;
+  const neededW = cols*w + (cols-1)*gap;
+  const neededH = rows*h + (rows-1)*gap;
+  const fitScale = Math.min(1, usableW/neededW, usableH/neededH);
 
   const root = document.documentElement;
   root.style.setProperty('--lbl-w', w+'mm');
@@ -3115,13 +3136,15 @@ function applyLabelFormat() {
   let psSt = document.getElementById('print-style');
   if(!psSt) { psSt = document.createElement('style'); psSt.id='print-style'; document.head.appendChild(psSt); }
   psSt.textContent = `@media print {
-    @page { size: ${ps.w}mm ${ps.h}mm; margin: 0; }
+    @page { size: ${ps.w}mm ${ps.h}mm; margin: ${pageMargin}mm; }
     html, body { margin: 0 !important; padding: 0 !important; }
-    /* Jeder Bogen ist exakt eine Seite und wird hart umbrochen. */
     #labels-grid-inner .lbl-page {
-      width: ${ps.w}mm !important;
-      height: ${ps.h}mm !important;
+      width: ${ps.w - 2*pageMargin}mm !important;
+      height: ${Math.max(0, ps.h - 2*pageMargin - 0.3)}mm !important;
       overflow: hidden !important;
+      display: flex !important;
+      align-items: flex-start !important;
+      justify-content: center !important;
       page-break-after: always;
       break-after: page;
       page-break-inside: avoid;
@@ -3142,8 +3165,7 @@ function applyLabelFormat() {
       grid-template-columns: repeat(${cols}, ${w}mm) !important;
       grid-auto-rows: ${h}mm !important;
       gap: ${gap}mm !important;
-      /* Feinjustierung für den jeweiligen Drucker – verschiebt nur optisch,
-         verändert das Raster selbst nicht. */
+      zoom: ${fitScale};
       transform: translate(${offX}mm, ${offY}mm);
     }
     .lbl { width: ${w}mm !important; height: ${h}mm !important; box-sizing: border-box !important;
