@@ -5334,15 +5334,41 @@ function dbLoadRecord(id) {
   }
 
   // Load data into db
-  state.activeStandort = r.standort;
-  state.activeKW = r.kw;
-  state.activeJahr = r.jahr;
   if(!state.db[r.standort]) state.db[r.standort] = {};
   state.db[r.standort][r.kwKey] = JSON.parse(JSON.stringify(r.data));
 
-  // Re-init UI
-  initUI();
-  showPage('einstellungen');
+  // Re-init UI (Konten, Standortliste, Formate usw.), aber WICHTIG: initUI()
+  // setzt activeStandort/activeKW/activeJahr normalerweise auf leer zurück
+  // ("App startet immer leer"). Das würde hier die gerade geladene Woche
+  // sofort wieder unsichtbar machen (Komponenten & Kitas würden dann die
+  // leere KW/Standort-Auswahl anzeigen statt der geladenen Daten).
+  // Deshalb hier bewusst NICHT initUI() aufrufen, sondern die Auswahl exakt
+  // auf die geladene Woche setzen und alle Jahr/KW/Standort-Dropdowns dazu
+  // synchron halten.
+  state.activeStandort = r.standort;
+  state.activeKW = r.kw;
+  state.activeJahr = r.jahr;
+  renderStandortSidebar();
+  populateYearSelect();
+  populateKWSelect();
+  renderDatesDisplay();
+  renderActiveDaysMgr();
+  applyRoleRestrictions();
+  applyLabelFormat();
+  state.standorte.forEach(s => { lblSelStandorte.add(s.name); komSelStandorte.add(s.name); lsSelStandorte.add(s.name); });
+
+  // Alle gepufferten "schon aufgefüllt"-Markierungen für diese Standort/KW-
+  // Kombination löschen, damit Kita & Mengen die frisch geladenen Daten
+  // zeigt statt sie fälschlich für "bereits initialisiert" zu halten.
+  if(state._kitaPadded) {
+    Object.keys(state._kitaPadded).forEach(k => {
+      if(k.startsWith(r.standort + '|' + r.kwKey + '|')) delete state._kitaPadded[k];
+    });
+  }
+
+  currentKitaDay = 'Montag';
+  currentCompDay = 'Montag';
+  showPage('kitas');
   alert(`✅ Geladen: ${r.standort} · KW ${String(r.kw).padStart(2,'0')} / ${r.jahr}`);
 }
 
