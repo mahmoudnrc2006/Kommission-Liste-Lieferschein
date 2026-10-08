@@ -843,6 +843,12 @@ body{font-family:var(--font);background:var(--gray-bg);display:flex;height:100vh
               </div>
             </div>
           </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray-border)">
+            <span style="font-size:11px;font-weight:600;color:var(--blue-dark)">Ansicht:</span>
+            <button class="btn-primary" style="font-size:11px" id="lbl-btn-all" onclick="setLblKitaView('all')">🏙 Alle Kitas</button>
+            <button class="btn-secondary" style="font-size:11px" id="lbl-btn-single" onclick="setLblKitaView('single')">🏠 Einzelne Kita</button>
+            <select id="lbl-kita-sel" style="display:none;padding:5px 8px;border:1px solid var(--gray-border);border-radius:4px;font-size:12px" onchange="onLblKitaSelChange()"></select>
+          </div>
         </div>
       </div>
 
@@ -2732,6 +2738,43 @@ const LBL_CAT_MAP = {m1:'m1',m2:'m2',des:'des',lp:'lp',salat:'salat',sko:'sko'};
 let lblFilterCats = new Set(['m1','m2','des','lp','salat','sko']);
 let lblFilterComps = new Set(); // empty = all comps
 
+// ─── Einzelne Kita (wie Produktionsliste) ───
+let lblKitaView = 'all'; // 'all' oder 'single'
+let lblKitaFilter = '';  // Name der ausgewählten Kita bei 'single'
+
+function setLblKitaView(v) {
+  lblKitaView = v;
+  document.getElementById('lbl-btn-all').className = v==='all'?'btn-primary':'btn-secondary';
+  document.getElementById('lbl-btn-single').className = v==='single'?'btn-primary':'btn-secondary';
+  document.getElementById('lbl-kita-sel').style.display = v==='single'?'':'none';
+  if(v==='single') {
+    populateLblKitaSel();
+  } else {
+    lblKitaFilter = '';
+  }
+  renderLabels(currentLblDay);
+}
+
+function populateLblKitaSel() {
+  // Alle Kitanamen über die gewählten Standorte für den aktuellen Tag sammeln
+  const names = getLblStandort();
+  const kwKey = currentKWKey();
+  const kitaNames = [];
+  names.forEach(standort => {
+    const sd = getStandortData(standort, kwKey);
+    (sd.kitas[currentLblDay]||[]).forEach(k => { if(k.name && !kitaNames.includes(k.name)) kitaNames.push(k.name); });
+  });
+  const sel = document.getElementById('lbl-kita-sel');
+  if(!sel) return;
+  if(!kitaNames.includes(lblKitaFilter)) lblKitaFilter = kitaNames[0] || '';
+  sel.innerHTML = kitaNames.map(n=>`<option value="${esc(n)}" ${n===lblKitaFilter?'selected':''}>${esc(n)}</option>`).join('');
+}
+
+function onLblKitaSelChange() {
+  lblKitaFilter = document.getElementById('lbl-kita-sel').value;
+  renderLabels(currentLblDay);
+}
+
 function toggleLblCat(cat, btn) {
   if(lblFilterCats.has(cat)) {
     if(lblFilterCats.size > 1) { lblFilterCats.delete(cat); btn.classList.remove('active'); btn.style.opacity='0.4'; }
@@ -2806,6 +2849,8 @@ function setAllLblComps(on) {
 
 function applyLblFilter(labels) {
   return labels.filter(l => {
+    // Einzelne-Kita-Filter
+    if(lblKitaView === 'single' && lblKitaFilter && l.kita !== lblKitaFilter) return false;
     // Category filter
     let cat = l.cls;
     if(l.isLunchpaket) cat = 'lp';
@@ -2919,6 +2964,7 @@ function renderLabels(day) {
   }).join('');
 
   populateLblStandortSel();
+  if(lblKitaView === 'single') populateLblKitaSel();
   let labels = buildAllStandortLabels(day);
   populateLblCompFilter();
   labels = applyLblFilter(labels);
